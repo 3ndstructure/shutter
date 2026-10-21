@@ -456,6 +456,8 @@ function q(arr,p){const s=[...arr].sort((a,b)=>a-b);if(!s.length)return null;con
 const camKey=()=>cur.cam?cur.cam.id:'q:'+norm(cur.query);
 const recsNow=()=>records[camKey()]||[];
 const srcOf=id=>SOURCES.find(s=>s.id===id);
+// Worker에 키가 아직 없는 공식 API (예: eBay 승인 대기 중)
+const noKey=s=>s.mode==='api'&&!!API.health&&API.health[s.id]===false;
 
 /* ===== Worker 연결 ===== */
 async function api(path,params){
@@ -536,7 +538,7 @@ function relevant(title){
 }
 async function loadLive(){
  const key=camKey();
- const run=SOURCES.filter(s=>s.mode==='api'||(s.mode==='scrape'&&API.health&&API.health.personal));
+ const run=SOURCES.filter(s=>(s.mode==='api'&&!noKey(s))||(s.mode==='scrape'&&API.health&&API.health.personal));
  run.forEach(s=>live[s.id]={state:'loading',items:[]});
  renderSrcs();renderListings();
  await Promise.all(run.map(async s=>{
@@ -560,14 +562,15 @@ function livePoints(){
 function renderSrcs(){
  const box=$('#srcs');box.innerHTML='';
  SOURCES.filter(s=>s.mode!=='link').forEach(s=>{
-  const v=live[s.id];let st,cls='';
+  const v=live[s.id];let st,cls='',tip=v&&v.error?v.error:(v&&v.note)||'';
   if(!API.base)st='연결 전';
   else if(s.mode==='scrape'&&!(API.health&&API.health.personal))st='개인 키 필요';
+  else if(noKey(s)){st='키 없음';tip='Worker에 이 사이트의 API 키를 넣으면 켜져요'}
   else if(!v)st='대기';
   else if(v.state==='loading')st='가져오는 중';
   else if(v.state==='error'){st='실패';cls='err'}
   else{const n=v.items.filter(i=>i.ok).length;st=`${n}건${v.cached?' · 저장본':''}`;cls='ok'}
-  const b=el('span',{class:'src '+cls,title:v&&v.error?v.error:(v&&v.note)||''},`<span class="mode ${s.mode}">${s.mode==='api'?'API':'개인'}</span><b>${s.name}</b><span class="st">${esc(st)}</span>`);
+  const b=el('span',{class:'src '+cls,title:tip},`<span class="mode ${s.mode}">${s.mode==='api'?'API':'개인'}</span><b>${s.name}</b><span class="st">${esc(st)}</span>`);
   box.append(b)});
 }
 function renderListings(){
