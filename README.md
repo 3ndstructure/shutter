@@ -1,6 +1,6 @@
 # 셔터값 배포 순서
 
-구성: **GitHub Pages**(화면) → **Cloudflare Worker**(가격·사진 수집) → 네이버·eBay API, 각 중고 사이트
+구성: **GitHub Pages**(화면) → **Cloudflare Worker**(가격·사진 수집) → eBay API, 각 중고 사이트
 
 ```
 shutter/
@@ -15,12 +15,11 @@ shutter/
 - [x] 파일 구조 정리 (`worker/` 폴더로 분리, `wrangler deploy` 빌드 확인)
 - [x] 3단계 Worker 설정 (`ALLOWED_ORIGINS`, `CONTACT` 입력 완료)
 - [x] eBay 키가 없어도 화면이 동작하도록 처리 (수집 상태에 "키 없음"으로 표시)
-- [x] 1단계 네이버 키 받기 (Flickr 키는 선택)
 - [x] 2단계 저장소 공개 전환 + GitHub Pages 켜기
 - [x] 4단계 Worker 배포 (eBay 빼고 먼저) → `https://shutter-price.shutter-price.workers.dev`
 - [x] 5단계 연결 확인
-- [ ] 네이버 키 다시 넣기 — 지금 401 오류 ([아래](#네이버-api가-401일-때))
-- [ ] (선택) 자동 배포 토큰 등록 ([아래](#자동-배포-github-actions))
+- [x] 네이버쇼핑은 바로가기로 전환 — 쇼핑 검색 API 종료 ([아래](#네이버쇼핑은-바로가기만))
+- [x] 자동 배포 토큰 등록 ([아래](#자동-배포-github-actions))
 - [ ] eBay 승인 후 키 두 개 추가 ([아래](#ebay-승인-후-5분))
 
 ---
@@ -34,11 +33,10 @@ shutter/
 
 | 키 | 어디서 | 받을 값 |
 |---|---|---|
-| 네이버 | developers.naver.com → Application → 애플리케이션 등록 → 사용 API에 **검색** 선택, 환경은 WEB에 `https://3ndstructure.github.io` | Client ID, Client Secret |
 | eBay | developer.ebay.com 가입 → (승인 후) Application Keys → **Production** 키 생성 | App ID(Client ID), Cert ID(Client Secret) |
 | Flickr (선택) | flickr.com/services/apps/create | API Key |
 
-- **eBay 개발자 계정은 승인까지 최소 하루가 걸려요.** 기다리지 말고 네이버 키만으로 2~5단계를 먼저 끝내세요. eBay 키가 없으면 수집 상태에 "eBay 키 없음"으로 나오고 나머지는 정상 동작해요.
+- **eBay 개발자 계정은 승인까지 최소 하루가 걸려요.** 기다리지 말고 2~5단계를 먼저 끝내세요. eBay 키가 없으면 수집 상태에 "eBay 키 없음"으로 나오고 나머지는 정상 동작해요.
 - Flickr 키가 없으면 작례는 위키미디어 공용 사진으로 대신 나와요 (기종에 따라 적을 수 있음).
 
 ## 2단계. 화면을 GitHub Pages에 올리기 (5분)
@@ -74,8 +72,6 @@ npx wrangler login                          # 브라우저가 열리면 Cloudfla
 npx wrangler kv namespace create CACHE      # 완료: id 는 wrangler.toml 에 들어가 있음 (다시 만들지 않기)
 
 npx wrangler secret put ACCESS_KEY          # 개인 키: 아무도 모를 긴 문자열 직접 만들어 입력
-npx wrangler secret put NAVER_ID
-npx wrangler secret put NAVER_SECRET
 npx wrangler secret put FLICKR_KEY          # 선택
 # EBAY_ID, EBAY_SECRET 은 승인 후에 넣어요 (아래 "eBay 승인 후")
 
@@ -89,7 +85,7 @@ npx wrangler deploy                          # 주소: https://shutter-price.shu
 1. 브라우저 주소창에 `https://shutter-price.shutter-price.workers.dev/api/health` → `{"ok":true, ...}` 가 보이면 성공
 2. GitHub Pages 사이트 열기 → 오른쪽 위 **자동 수집 꺼짐** 누르기
 3. Worker 주소와 개인 키(ACCESS_KEY와 같은 값) 입력 → **저장하고 연결 확인**
-4. 네이버·개인용 수집·저장소가 "켜짐"으로 나오면 완료 (eBay는 승인 전까지 "꺼짐"이 정상)
+4. 개인용 수집·저장소가 "켜짐"으로 나오면 완료 (eBay는 승인 전까지 "꺼짐"이 정상)
 
 **`ERR_SSL_VERSION_OR_CIPHER_MISMATCH` 가 뜨면**: workers.dev 하위 도메인(`shutter-price.workers.dev`)을 방금 처음 만들어서 Cloudflare가 아직 HTTPS 인증서를 발급하는 중이에요. 코드나 설정 문제가 아니라 기다리면 풀려요.
 
@@ -98,20 +94,16 @@ npx wrangler deploy                          # 주소: https://shutter-price.shu
 3. 한두 시간이 지나도 그대로면: Cloudflare 대시보드 → Workers & Pages → `shutter-price` → Settings → Domains & Routes 에서 workers.dev 가 **Enabled** 인지 확인
 4. 그래도 안 되면 백신의 HTTPS 검사·VPN을 잠시 끄고 열어보기
 
-## 네이버 API가 401일 때
+## 네이버쇼핑은 바로가기만
 
-401은 네이버가 키를 거절했다는 뜻이에요. 칩에 마우스를 올리면 Worker에 들어간 키 길이가 보여요.
+네이버 개발자센터의 **검색 > 쇼핑 API가 2026년 7월 31일에 종료**됐어요 (책·전문자료 API도 함께). 네이버 클라우드 플랫폼의 NAVER API HUB로도 옮겨지지 않았어요. 그래서 네이버쇼핑은 자동 수집에서 빼고, **판매처 바로가기**에서 같은 검색어로 여는 링크만 남겼어요.
 
-- **Client ID는 20자, Client Secret은 10자**예요. 둘을 바꿔 넣었거나 두 번 붙여넣으면 401이 나요.
-  `wrangler secret put` 을 할 때 입력창의 `*` 개수로 확인할 수 있어요.
-- 다시 넣기: `worker` 폴더에서
+- NCP의 **쇼핑인사이트** API는 검색량 추세 통계라 매물·가격이 없어 쓸 수 없어요. 이용 신청을 했다면 안 쓸 경우 해지하세요 (NCP 요금제가 적용될 수 있음).
+- 예전에 넣은 `NAVER_ID`, `NAVER_SECRET` 은 더 쓰지 않아요. 남아 있어도 문제는 없고, 지우려면 `worker` 폴더에서:
   ```bash
-  npx wrangler secret put NAVER_ID       # Client ID (20자) → * 가 20개인지 확인
-  npx wrangler secret put NAVER_SECRET   # Client Secret (10자) → * 가 10개인지 확인
+  npx wrangler secret delete NAVER_ID
+  npx wrangler secret delete NAVER_SECRET
   ```
-  터미널 붙여넣기가 계속 이상하면 Cloudflare 대시보드 → Workers & Pages → `shutter-price` → Settings → Variables and Secrets 에서 값을 고쳐도 돼요.
-- 길이가 맞는데도 401이면: developers.naver.com → 내 애플리케이션 → API 설정 → 사용 API에 **검색** 이 있는지 확인
-- 비밀값은 넣는 즉시 적용돼요. 사이트를 새로고침해서 확인하세요.
 
 ## 자동 배포 (GitHub Actions)
 
@@ -122,7 +114,7 @@ npx wrangler deploy                          # 주소: https://shutter-price.shu
 3. 저장소 Actions 탭 → **Deploy Worker** → Run workflow 로 바로 배포해 볼 수 있어요
 
 - 토큰이 없으면 이 작업은 배포를 건너뛰고 초록색으로 끝나요.
-- 비밀값(`NAVER_*`, `EBAY_*`, `ACCESS_KEY`)은 배포해도 그대로 유지돼요.
+- 비밀값(`EBAY_*`, `ACCESS_KEY`, `FLICKR_KEY`)은 배포해도 그대로 유지돼요.
 
 ## eBay 승인 후 (5분)
 
@@ -142,10 +134,10 @@ npx wrangler deploy                          # 주소: https://shutter-price.shu
 
 | 사이트 | 방식 | 실패하면 |
 |---|---|---|
-| 네이버쇼핑, eBay | 공식 API | 키 오타, eBay Production 키 활성화 여부 확인. "키 없음"은 Worker에 키를 아직 안 넣은 것. 네이버 401은 [위](#네이버-api가-401일-때) 참고 |
+| eBay | 공식 API | 키 오타, Production 키 활성화 여부 확인. "키 없음"은 Worker에 키를 아직 안 넣은 것 |
 | 번개장터, 중고나라, 당근(서울), 야후옥션 | 개인용 수집 | 사이트 구조가 바뀐 것. 실패 메시지를 Claude에게 보내면 수정 |
 | 후르츠패밀리 | 개인용 수집 (실험) | 앱 중심 사이트라 0건일 수 있음 |
-| N플리마켓, 메루카리, 쿠팡, 커뮤니티 장터 | 바로가기 링크 | 공개 검색 경로가 없어 수집하지 않음 |
+| 네이버쇼핑, N플리마켓, 메루카리, 쿠팡, 커뮤니티 장터 | 바로가기 링크 | 공개 검색 경로가 없거나 API가 종료돼 수집하지 않음 |
 
 ## 알아둘 것
 
