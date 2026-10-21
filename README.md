@@ -4,11 +4,22 @@
 
 ```
 shutter/
-├─ site/index.html          ← GitHub에 올릴 화면
+├─ index.html               ← GitHub Pages 화면 (Pages가 읽도록 저장소 맨 위에 둠)
 └─ worker/
    ├─ wrangler.toml         ← Worker 설정
    └─ src/index.js          ← 수집 코드
 ```
+
+## 진행 상황
+
+- [x] 파일 구조 정리 (`worker/` 폴더로 분리, `wrangler deploy` 빌드 확인)
+- [x] 3단계 Worker 설정 (`ALLOWED_ORIGINS`, `CONTACT` 입력 완료)
+- [x] eBay 키가 없어도 화면이 동작하도록 처리 (수집 상태에 "키 없음"으로 표시)
+- [ ] 1단계 네이버 키 받기 (Flickr 키는 선택)
+- [ ] 2단계 저장소 공개 전환 + GitHub Pages 켜기
+- [ ] 4단계 Worker 배포 (eBay 빼고 먼저)
+- [ ] 5단계 연결 확인
+- [ ] eBay 승인 후 키 두 개 추가 ([아래](#ebay-승인-후-5분))
 
 ---
 
@@ -17,57 +28,78 @@ shutter/
 - GitHub 계정, Cloudflare 계정 (둘 다 무료)
 - 컴퓨터에 **Node.js LTS** 설치 → 터미널에서 `node -v` 가 나오면 됨
 
-## 1단계. API 키 받기 (20~30분, 승인 대기가 있을 수 있음)
+## 1단계. API 키 받기 (20~30분, eBay는 승인에 하루 이상)
 
 | 키 | 어디서 | 받을 값 |
 |---|---|---|
-| 네이버 | developers.naver.com → Application → 애플리케이션 등록 → 사용 API에 **검색** 선택, 환경은 WEB에 GitHub 주소 | Client ID, Client Secret |
-| eBay | developer.ebay.com 가입 → Application Keys → **Production** 키 생성 | App ID(Client ID), Cert ID(Client Secret) |
+| 네이버 | developers.naver.com → Application → 애플리케이션 등록 → 사용 API에 **검색** 선택, 환경은 WEB에 `https://3ndstructure.github.io` | Client ID, Client Secret |
+| eBay | developer.ebay.com 가입 → (승인 후) Application Keys → **Production** 키 생성 | App ID(Client ID), Cert ID(Client Secret) |
 | Flickr (선택) | flickr.com/services/apps/create | API Key |
 
-- eBay Production 키를 켤 때 "계정 삭제 알림(Marketplace Account Deletion)" 설정을 요구하면, 개인 데이터를 저장하지 않는 앱이라 **면제(opt out)** 를 선택하면 돼요.
+- **eBay 개발자 계정은 승인까지 최소 하루가 걸려요.** 기다리지 말고 네이버 키만으로 2~5단계를 먼저 끝내세요. eBay 키가 없으면 수집 상태에 "eBay 키 없음"으로 나오고 나머지는 정상 동작해요.
 - Flickr 키가 없으면 작례는 위키미디어 공용 사진으로 대신 나와요 (기종에 따라 적을 수 있음).
 
-## 2단계. 화면을 GitHub Pages에 올리기 (10분)
+## 2단계. 화면을 GitHub Pages에 올리기 (5분)
 
-1. GitHub에서 새 저장소 `shutter-price` 만들기 (Public)
-2. `site/index.html` 을 저장소 **맨 위(root)** 에 업로드
-3. 저장소 Settings → Pages → Branch: `main`, 폴더 `/ (root)` → Save
-4. 1~2분 뒤 주소 확인: `https://내아이디.github.io/shutter-price/`
+`index.html` 은 이미 이 저장소(`3ndstructure/shutter`) 맨 위에 있어요.
 
-## 3단계. Worker 설정 고치기 (5분)
+1. 이 작업 브랜치가 `main` 에 합쳐져 있는지 확인 (Pages는 `main` 을 읽어요)
+2. **저장소 공개 전환**: 지금 저장소가 Private이라 무료 계정에서는 Pages를 켤 수 없어요.
+   Settings → General → 맨 아래 Danger Zone → **Change visibility → Public**
+   (비밀 키는 저장소가 아니라 Cloudflare에 들어가니 공개해도 괜찮아요. GitHub Pro라면 Private 그대로 가능)
+3. Settings → Pages → Source: **Deploy from a branch**, Branch: `main`, 폴더 `/ (root)` → Save
+4. 1~2분 뒤 주소 확인: `https://3ndstructure.github.io/shutter/`
 
-`worker/wrangler.toml` 에서 두 줄 바꾸기:
+## 3단계. Worker 설정 고치기 — 완료
+
+`worker/wrangler.toml` 에 이미 들어가 있어요:
 
 ```toml
-ALLOWED_ORIGINS = "https://내아이디.github.io"   # 뒤에 /shutter-price 붙이지 않음
-CONTACT = "내이메일@gmail.com"
+ALLOWED_ORIGINS = "https://3ndstructure.github.io"
+CONTACT = "https://3ndstructure.github.io/shutter/"
 ```
+
+- `CONTACT` 는 위키미디어에 보내는 연락처예요. 저장소가 공개되므로 이메일 대신 사이트 주소를 넣었어요. 이메일을 쓰고 싶으면 바꿔도 돼요.
+- 나중에 개인 도메인을 쓰면 `ALLOWED_ORIGINS` 에 쉼표로 추가하세요.
 
 ## 4단계. Worker 배포 (15분)
 
 터미널에서 `worker` 폴더로 이동 후 순서대로:
 
 ```bash
+cd worker
 npx wrangler login                          # 브라우저가 열리면 Cloudflare 로그인 후 허용
 npx wrangler kv namespace create CACHE      # 나온 id 를 wrangler.toml 의 PUT-KV-ID-HERE 자리에 붙여넣기
 
 npx wrangler secret put ACCESS_KEY          # 개인 키: 아무도 모를 긴 문자열 직접 만들어 입력
 npx wrangler secret put NAVER_ID
 npx wrangler secret put NAVER_SECRET
-npx wrangler secret put EBAY_ID
-npx wrangler secret put EBAY_SECRET
 npx wrangler secret put FLICKR_KEY          # 선택
+# EBAY_ID, EBAY_SECRET 은 승인 후에 넣어요 (아래 "eBay 승인 후")
 
 npx wrangler deploy                          # 끝나면 https://shutter-price.○○.workers.dev 주소가 나옴
 ```
+
+- KV id를 바꾼 `wrangler.toml` 은 커밋해서 올려도 돼요 (id는 비밀값이 아님).
 
 ## 5단계. 연결 확인 (5분)
 
 1. 브라우저 주소창에 `https://shutter-price.○○.workers.dev/api/health` → `{"ok":true, ...}` 가 보이면 성공
 2. GitHub Pages 사이트 열기 → 오른쪽 위 **자동 수집 꺼짐** 누르기
 3. Worker 주소와 개인 키(ACCESS_KEY와 같은 값) 입력 → **저장하고 연결 확인**
-4. 네이버·eBay·개인용 수집·저장소가 "켜짐"으로 나오면 완료
+4. 네이버·개인용 수집·저장소가 "켜짐"으로 나오면 완료 (eBay는 승인 전까지 "꺼짐"이 정상)
+
+## eBay 승인 후 (5분)
+
+1. developer.ebay.com → Application Keys → **Production** 키 생성
+2. "계정 삭제 알림(Marketplace Account Deletion)" 설정을 요구하면, 개인 데이터를 저장하지 않는 앱이라 **면제(opt out)** 를 선택
+3. `worker` 폴더에서:
+   ```bash
+   npx wrangler secret put EBAY_ID       # App ID (Client ID)
+   npx wrangler secret put EBAY_SECRET   # Cert ID (Client Secret)
+   ```
+   비밀값을 넣으면 바로 적용돼요. `deploy` 를 다시 할 필요 없어요.
+4. 사이트를 새로고침 → 설정에서 eBay "켜짐" 확인
 
 ## 6단계. 사이트별 동작 점검
 
@@ -75,7 +107,7 @@ npx wrangler deploy                          # 끝나면 https://shutter-price.�
 
 | 사이트 | 방식 | 실패하면 |
 |---|---|---|
-| 네이버쇼핑, eBay | 공식 API | 키 오타, eBay Production 키 활성화 여부 확인 |
+| 네이버쇼핑, eBay | 공식 API | 키 오타, eBay Production 키 활성화 여부 확인. "키 없음"은 Worker에 키를 아직 안 넣은 것 |
 | 번개장터, 중고나라, 당근(서울), 야후옥션 | 개인용 수집 | 사이트 구조가 바뀐 것. 실패 메시지를 Claude에게 보내면 수정 |
 | 후르츠패밀리 | 개인용 수집 (실험) | 앱 중심 사이트라 0건일 수 있음 |
 | N플리마켓, 메루카리, 쿠팡, 커뮤니티 장터 | 바로가기 링크 | 공개 검색 경로가 없어 수집하지 않음 |
