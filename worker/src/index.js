@@ -8,7 +8,6 @@
 // 필요한 설정 (wrangler secret / vars)
 //   ALLOWED_ORIGINS  사이트 주소. 쉼표로 여러 개 (예: https://아이디.github.io)
 //   ACCESS_KEY       개인용 수집을 켤 비밀 키 (페이지 설정에 같은 값 입력)
-//   NAVER_ID, NAVER_SECRET     네이버 검색 API
 //   EBAY_ID, EBAY_SECRET       eBay 개발자 Production 키
 //   FLICKR_KEY       (선택) Flickr API 키
 //   CONTACT          위키미디어 요청에 붙일 연락처 (이메일 또는 사이트 주소)
@@ -20,7 +19,6 @@ const enc = encodeURIComponent;
 
 // kind: api = 공식 API, scrape = 개인용 수집 (ACCESS_KEY 필요)
 const SOURCES = {
-  naver:   { kind: 'api',    ttl: 3600,  run: naver },
   ebay:    { kind: 'api',    ttl: 3600,  run: ebay },
   bunjang: { kind: 'scrape', ttl: 21600, run: bunjang },
   joongna: { kind: 'scrape', ttl: 21600, run: joongna },
@@ -53,7 +51,7 @@ export default {
       if (url.pathname === '/api/health') {
         return json({
           ok: true, personal: keyOk,
-          naver: !!(env.NAVER_ID && env.NAVER_SECRET), ebay: !!(env.EBAY_ID && env.EBAY_SECRET),
+          ebay: !!(env.EBAY_ID && env.EBAY_SECRET),
           flickr: !!env.FLICKR_KEY, cache: !!env.CACHE,
         });
       }
@@ -120,31 +118,6 @@ const toNum = v => {
   return n;
 };
 const stripTags = s => String(s || '').replace(/<[^>]+>/g, '').replace(/&amp;/g, '&').replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>').trim();
-
-/* ---------- 공식 API: 네이버쇼핑 ---------- */
-async function naver(q, env) {
-  // 붙여넣을 때 딸려 온 공백·줄바꿈 제거
-  const id = (env.NAVER_ID || '').trim(), secret = (env.NAVER_SECRET || '').trim();
-  if (!id || !secret) throw new Error('네이버 API 키가 설정되지 않았어요.');
-  const r = await fetch(`https://openapi.naver.com/v1/search/shop.json?query=${enc(q)}&display=60&sort=sim`, {
-    headers: { 'X-Naver-Client-Id': id, 'X-Naver-Client-Secret': secret },
-  });
-  if (!r.ok) {
-    const e = await r.json().catch(() => ({}));
-    const hint = r.status === 401
-      ? ` · NAVER_ID는 Client ID(20자), NAVER_SECRET은 Client Secret(10자)이어야 해요. 지금 ${id.length}자 / ${secret.length}자. 앱의 사용 API에 "검색"도 있어야 해요`
-      : r.status === 429 ? ' · 하루 호출 한도(25,000회)를 넘었어요' : '';
-    throw new Error(`네이버 API 응답 ${r.status}${e.errorMessage ? ` (${e.errorMessage})` : ''}${hint}`);
-  }
-  const d = await r.json();
-  // productType 4~6 = 중고, 7~9 = 단종
-  return {
-    items: (d.items || []).map(it => ({
-      title: stripTags(it.title), price: toNum(it.lprice), cur: 'KRW', url: it.link, img: it.image,
-      seller: it.mallName, used: [4, 5, 6].includes(+it.productType), sold: false,
-    })).filter(i => i.price > 0),
-  };
-}
 
 /* ---------- 공식 API: eBay Browse ---------- */
 async function ebayToken(env) {

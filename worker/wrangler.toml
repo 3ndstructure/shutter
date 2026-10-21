@@ -22,8 +22,6 @@ id = "86c67d3abb7b48d0971907fc5db03166"
 
 # 비밀값은 여기 적지 말고 명령어로 넣습니다:
 #   npx wrangler secret put ACCESS_KEY
-#   npx wrangler secret put NAVER_ID
-#   npx wrangler secret put NAVER_SECRET
 #   npx wrangler secret put EBAY_ID
 #   npx wrangler secret put EBAY_SECRET
 #   npx wrangler secret put FLICKR_KEY   (선택)

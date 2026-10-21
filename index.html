@@ -347,7 +347,7 @@ footer{font-size:12.5px;color:var(--muted);max-width:72ch}
 const enc=encodeURIComponent;
 // mode: api = 공식 API 자동, scrape = 개인용 수집, link = 바로가기만
 const SOURCES=[
- {id:'naver',name:'네이버쇼핑',flag:'KR',cur:'KRW',mode:'api',lang:'kr',link:c=>`https://search.shopping.naver.com/search/all?query=${enc(c.kr)}`},
+ {id:'naver',name:'네이버쇼핑',flag:'KR',cur:'KRW',mode:'link',lang:'kr',link:c=>`https://search.shopping.naver.com/search/all?query=${enc(c.kr)}`},
  {id:'bunjang',name:'번개장터',flag:'KR',cur:'KRW',mode:'scrape',lang:'kr',link:c=>`https://m.bunjang.co.kr/search/products?q=${enc(c.kr)}`},
  {id:'joongna',name:'중고나라',flag:'KR',cur:'KRW',mode:'scrape',lang:'kr',link:c=>`https://web.joongna.com/search/${enc(c.kr)}`},
  {id:'daangn',name:'당근 (서울)',flag:'KR',cur:'KRW',mode:'scrape',lang:'kr',link:c=>`https://www.daangn.com/kr/buy-sell/?search=${enc(c.kr)}`},
@@ -365,6 +365,7 @@ const DIRECTORY=[
  {name:'뽐뿌 장터',desc:'카메라 중고 거래',site:'ppomppu.co.kr',lang:'kr'},
  {name:'N플리마켓',desc:'네이버 카페 연동 중고거래',url:()=> 'https://fleamarket.naver.com/'},
  {name:'메루카리 판매 완료',desc:'일본 개인 거래가',src:'mercari'},
+ {name:'네이버쇼핑',desc:'새상품 위주 가격 비교',src:'naver'},
  {name:'쿠팡',desc:'새상품·리퍼',src:'coupang'},
  {name:'Map Camera',desc:'일본 중고 카메라 전문점',site:'mapcamera.com',lang:'en'},
  {name:'KEH Camera',desc:'미국 중고 카메라 전문점',site:'keh.com',lang:'en'}
@@ -475,7 +476,7 @@ async function checkHealth(){
  setConn('','연결 확인 중');
  try{const d=await api('api/health');API.health=d;
   setConn('on',d.personal?'자동 + 개인용 수집':'자동 수집 연결됨');
-  [['네이버',d.naver],['eBay',d.ebay],['개인용 수집',d.personal],['Flickr',d.flickr],['저장소',d.cache]].forEach(([n,ok])=>h.append(el('span',{class:ok?'y':'n'},`${n} ${ok?'켜짐':'꺼짐'}`)));
+  [['eBay',d.ebay],['개인용 수집',d.personal],['Flickr',d.flickr],['저장소',d.cache]].forEach(([n,ok])=>h.append(el('span',{class:ok?'y':'n'},`${n} ${ok?'켜짐':'꺼짐'}`)));
  }catch(e){API.health=null;setConn('err','연결 실패');h.append(el('span',{class:'n'},esc(e.message)))}
 }
 
@@ -575,7 +576,7 @@ function renderSrcs(){
 }
 function renderListings(){
  const box=$('#listings');box.innerHTML='';
- if(!API.base){box.append(el('p',{class:'note'},'아직 자동 수집이 연결되지 않았어요. 오른쪽 위 <b>자동 수집 꺼짐</b>을 눌러 Worker 주소를 넣으면 네이버쇼핑·eBay·번개장터·중고나라·당근(서울)·후르츠패밀리·야후옥션 매물이 여기 모여요. 그 전까지는 아래에 직접 기록한 가격으로 판정해요.'));return}
+ if(!API.base){box.append(el('p',{class:'note'},'아직 자동 수집이 연결되지 않았어요. 오른쪽 위 <b>자동 수집 꺼짐</b>을 눌러 Worker 주소를 넣으면 eBay·번개장터·중고나라·당근(서울)·후르츠패밀리·야후옥션 매물이 여기 모여요. 그 전까지는 아래에 직접 기록한 가격으로 판정해요.'));return}
  let items=Object.values(live).flatMap(v=>v.items||[]);
  const loading=Object.values(live).some(v=>v.state==='loading');
  const noise=items.filter(i=>!i.ok);
