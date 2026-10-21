@@ -1,6 +1,8 @@
 name = "shutter-price"
 main = "src/index.js"
 compatibility_date = "2026-09-01"
+# GitHub Actions 자동 배포가 이 계정으로 올림 (비밀값 아님)
+account_id = "797fdd9807b4693d90d58fdef60764a1"
 # https://shutter-price.shutter-price.workers.dev 로 공개. 버전별 미리보기 주소는 쓰지 않음
 workers_dev = true
 preview_urls = false

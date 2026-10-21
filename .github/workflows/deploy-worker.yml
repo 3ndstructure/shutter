@@ -1,0 +1,30 @@
+# main 에 worker/ 변경이 올라오면 Cloudflare Worker를 배포해요.
+# 저장소 Secrets 에 CLOUDFLARE_API_TOKEN 이 없으면 배포를 건너뛰어요 (README "자동 배포" 참고).
+name: Deploy Worker
+
+on:
+  push:
+    branches: [main]
+    paths: ['worker/**', '.github/workflows/deploy-worker.yml']
+  workflow_dispatch:
+
+concurrency: deploy-worker
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: wrangler deploy
+        working-directory: worker
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          if [ -z "$CLOUDFLARE_API_TOKEN" ]; then
+            echo "::notice::CLOUDFLARE_API_TOKEN 이 없어 배포를 건너뛰었어요. README의 '자동 배포'를 참고하세요."
+            exit 0
+          fi
+          npx -y wrangler@4.151.3 deploy

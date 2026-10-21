@@ -123,11 +123,19 @@ const stripTags = s => String(s || '').replace(/<[^>]+>/g, '').replace(/&amp;/g,
 
 /* ---------- 공식 API: 네이버쇼핑 ---------- */
 async function naver(q, env) {
-  if (!env.NAVER_ID || !env.NAVER_SECRET) throw new Error('네이버 API 키가 설정되지 않았어요.');
+  // 붙여넣을 때 딸려 온 공백·줄바꿈 제거
+  const id = (env.NAVER_ID || '').trim(), secret = (env.NAVER_SECRET || '').trim();
+  if (!id || !secret) throw new Error('네이버 API 키가 설정되지 않았어요.');
   const r = await fetch(`https://openapi.naver.com/v1/search/shop.json?query=${enc(q)}&display=60&sort=sim`, {
-    headers: { 'X-Naver-Client-Id': env.NAVER_ID, 'X-Naver-Client-Secret': env.NAVER_SECRET },
+    headers: { 'X-Naver-Client-Id': id, 'X-Naver-Client-Secret': secret },
   });
-  if (!r.ok) throw new Error(`네이버 API 응답 ${r.status}`);
+  if (!r.ok) {
+    const e = await r.json().catch(() => ({}));
+    const hint = r.status === 401
+      ? ` · NAVER_ID는 Client ID(20자), NAVER_SECRET은 Client Secret(10자)이어야 해요. 지금 ${id.length}자 / ${secret.length}자. 앱의 사용 API에 "검색"도 있어야 해요`
+      : r.status === 429 ? ' · 하루 호출 한도(25,000회)를 넘었어요' : '';
+    throw new Error(`네이버 API 응답 ${r.status}${e.errorMessage ? ` (${e.errorMessage})` : ''}${hint}`);
+  }
   const d = await r.json();
   // productType 4~6 = 중고, 7~9 = 단종
   return {
@@ -148,7 +156,7 @@ async function ebayToken(env) {
     method: 'POST',
     headers: {
       'Content-Type': 'application/x-www-form-urlencoded',
-      Authorization: 'Basic ' + btoa(`${env.EBAY_ID}:${env.EBAY_SECRET}`),
+      Authorization: 'Basic ' + btoa(`${env.EBAY_ID.trim()}:${env.EBAY_SECRET.trim()}`),
     },
     body: 'grant_type=client_credentials&scope=' + enc('https://api.ebay.com/oauth/api_scope'),
   });
