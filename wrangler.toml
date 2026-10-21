@@ -1,0 +1,23 @@
+name = "shutter-price"
+main = "src/index.js"
+compatibility_date = "2026-09-01"
+
+[vars]
+# GitHub Pages 주소로 바꾸세요. 여러 개면 쉼표로 구분
+ALLOWED_ORIGINS = "https://YOUR-GITHUB-ID.github.io"
+CONTACT = "YOUR-EMAIL@example.com"
+# 당근 지역 파라미터를 알게 되면 넣으세요 (비워 두면 서울 필터만 적용)
+DAANGN_REGION = ""
+
+# 결과 저장소 (README 4단계에서 만든 id로 바꾸세요)
+[[kv_namespaces]]
+binding = "CACHE"
+id = "PUT-KV-ID-HERE"
+
+# 비밀값은 여기 적지 말고 명령어로 넣습니다:
+#   npx wrangler secret put ACCESS_KEY
+#   npx wrangler secret put NAVER_ID
+#   npx wrangler secret put NAVER_SECRET
+#   npx wrangler secret put EBAY_ID
+#   npx wrangler secret put EBAY_SECRET
+#   npx wrangler secret put FLICKR_KEY   (선택)

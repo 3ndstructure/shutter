@@ -1,0 +1,790 @@
+<!doctype html>
+<html lang="ko">
+<title>셔터값</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta charset="utf-8">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=IBM+Plex+Sans+KR:wght@400;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: 매장에서 한 손으로 보는 도구 — 가격표 모양 판정 카드 + 탭 4개(시세·스펙·비교·작례) */
+:root{
+  --bg:#e9ece8; --surface:#f7f8f5; --ink:#1b211d; --muted:#5b655e; --line:#cfd5cf;
+  --accent:#c98a12; --accent-ink:#4a3204; --teal:#2f6f6a;
+  --good:#2f7d4a; --warn:#b06a00; --bad:#b33a2e;
+  --display:"Black Han Sans","IBM Plex Sans KR",system-ui,sans-serif;
+  --body:"IBM Plex Sans KR",system-ui,-apple-system,"Apple SD Gothic Neo",sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#131714; --surface:#1c221e; --ink:#e7ebe6; --muted:#9aa49c; --line:#2f3832;
+  --accent:#e6a93a; --accent-ink:#1a1204; --teal:#6fb5ae;
+  --good:#5cc17d; --warn:#e2a043; --bad:#ec7a6c; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#131714; --surface:#1c221e; --ink:#e7ebe6; --muted:#9aa49c; --line:#2f3832;
+  --accent:#e6a93a; --accent-ink:#1a1204; --teal:#6fb5ae;
+  --good:#5cc17d; --warn:#e2a043; --bad:#ec7a6c; color-scheme:dark}
+*{box-sizing:border-box}
+html{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.55;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:20px 48px}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--bg)}
+img{max-width:100%}
+[hidden]{display:none!important}
+.wrap{max-width:980px;margin:0 auto;display:flex;flex-direction:column;gap:22px}
+h1,h2,h3{font-family:var(--display);font-weight:400;margin:0;text-wrap:balance;letter-spacing:.01em}
+h1{font-size:34px;line-height:1}
+h2{font-size:22px}
+h3{font-size:17px}
+.lbl{font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.num{font-family:var(--mono);font-variant-numeric:tabular-nums}
+a{color:var(--teal)}
+button,input,select{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+header{display:flex;flex-wrap:wrap;align-items:end;justify-content:space-between;gap:12px}
+header p{margin:4px 0 0;color:var(--muted);font-size:13.5px}
+.conn{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:var(--surface);padding:5px 10px;border-radius:99px;font-size:12.5px;cursor:pointer}
+.conn i{width:8px;height:8px;border-radius:50%;background:var(--muted)}
+.conn.on i{background:var(--good)} .conn.err i{background:var(--bad)}
+
+.settings-panel{background:var(--surface);border:1.5px solid var(--ink);border-radius:6px;padding:16px;display:grid;gap:12px}
+.settings-panel .row{display:grid;grid-template-columns:120px 1fr;gap:10px;align-items:center}
+.settings-panel input{padding:9px 10px;border:1px solid var(--line);border-radius:4px;background:var(--bg);min-width:0;width:100%;font-family:var(--mono);font-size:13.5px}
+.settings-panel p{margin:0;font-size:13px;color:var(--muted)}
+.health{font-size:13px;display:flex;flex-wrap:wrap;gap:6px}
+.health span{border:1px solid var(--line);border-radius:3px;padding:1px 7px}
+.health .y{color:var(--good);border-color:var(--good)} .health .n{color:var(--muted)}
+
+.search{display:grid;grid-template-columns:1fr auto;gap:8px}
+.search input{width:100%;padding:12px 14px;border:1.5px solid var(--ink);background:var(--surface);border-radius:4px;font-size:16px;min-width:0}
+.btn{border:1.5px solid var(--ink);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:4px;cursor:pointer;font-weight:600}
+.btn.ghost{background:transparent;color:var(--ink)}
+.btn.sm{padding:5px 10px;font-size:13px;border-width:1px}
+.quick{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.chip{border:1px solid var(--line);background:var(--surface);padding:4px 10px;border-radius:99px;font-size:13px;cursor:pointer}
+.chip[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);font-weight:600}
+
+/* 판정 카드: 매장 가격표처럼 */
+.verdict{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);border:1.5px solid var(--ink);border-radius:6px;overflow:hidden;background:var(--surface)}
+.verdict .l{padding:18px;display:grid;grid-template-columns:150px minmax(0,1fr);gap:16px;border-right:1.5px dashed var(--ink);position:relative;align-items:start}
+.verdict .l::after{content:"";position:absolute;right:-9px;top:50%;width:16px;height:16px;border-radius:50%;background:var(--bg);border:1.5px solid var(--ink);transform:translateY(-50%)}
+.verdict .r{padding:18px;display:flex;flex-direction:column;gap:6px;justify-content:center}
+.photo{display:flex;flex-direction:column;gap:4px;min-width:0}
+.photo .box{aspect-ratio:4/3;max-width:100%;background:var(--bg);border:1px solid var(--line);border-radius:4px;display:flex;align-items:center;justify-content:center;overflow:hidden}
+.photo .box img{width:100%;height:100%;object-fit:contain;background:#fff}
+.photo .box svg{width:86%;height:auto}
+.photo small{font-size:10.5px;color:var(--muted);line-height:1.35;overflow-wrap:anywhere}
+.photo small a{color:var(--muted)}
+.idblock{display:flex;flex-direction:column;gap:8px;min-width:0}
+.official{font-family:var(--display);font-size:27px;line-height:1.1;overflow-wrap:anywhere}
+.krname{font-size:14px;font-weight:600}
+.meta{color:var(--muted);font-size:13px}
+.shop{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:4px}
+.shop input{width:150px;padding:9px 10px;border:1px solid var(--line);border-radius:4px;background:var(--bg);font-family:var(--mono);font-size:17px;text-align:right}
+.badge{display:inline-block;font-family:var(--display);font-size:30px;line-height:1}
+.badge.good{color:var(--good)}.badge.warn{color:var(--warn)}.badge.bad{color:var(--bad)}.badge.idle{color:var(--muted);font-size:22px}
+.gauge{height:10px;border-radius:5px;background:linear-gradient(90deg,var(--good),var(--warn) 55%,var(--bad));position:relative;margin-top:8px}
+.gauge i{position:absolute;top:-5px;width:4px;height:20px;background:var(--ink);border-radius:2px;transform:translateX(-50%);transition:left .3s}
+.gauge-scale{display:flex;justify-content:space-between;font-size:11.5px;color:var(--muted)}
+
+.tabs{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;display:grid;grid-template-columns:repeat(4,1fr);background:var(--bg);border-bottom:1.5px solid var(--ink);margin-bottom:-22px;padding-top:6px}
+.tabs button{background:none;border:none;border-bottom:3px solid transparent;padding:10px 4px 9px;cursor:pointer;font-family:var(--display);font-size:18px;color:var(--muted);margin-bottom:-1.5px}
+.tabs button[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--accent)}
+.tabs button:hover{color:var(--ink)}
+
+section{background:var(--surface);border:1px solid var(--line);border-top:none;border-radius:0 0 6px 6px;padding:18px;display:flex;flex-direction:column;gap:16px;min-width:0}
+.sec-head{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:baseline;gap:8px}
+.sec-head p{margin:0;color:var(--muted);font-size:13px;max-width:62ch}
+.sub{display:flex;flex-direction:column;gap:8px}
+.note{font-size:13px;color:var(--muted);background:var(--bg);border:1px dashed var(--line);border-radius:4px;padding:10px 12px}
+
+.strip-box{overflow-x:auto}
+.strip{display:block;width:100%;min-width:560px;height:auto}
+.legend{display:flex;flex-wrap:wrap;gap:14px;font-size:12.5px;color:var(--muted)}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.dot{width:10px;height:10px;border-radius:50%;display:inline-block}
+
+.srcs{display:flex;flex-wrap:wrap;gap:6px}
+.src{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:3px;padding:3px 8px;font-size:12.5px;background:var(--bg)}
+.src b{font-weight:600}
+.src .st{font-family:var(--mono);font-size:11.5px;color:var(--muted)}
+.src.ok{border-color:var(--teal)} .src.ok .st{color:var(--teal)}
+.src.err .st{color:var(--bad)}
+.src .mode{font-size:10.5px;border-radius:2px;padding:0 4px;background:var(--line);color:var(--ink)}
+.src .mode.api{background:var(--teal);color:var(--surface)}
+.src .mode.scrape{background:var(--accent);color:var(--accent-ink)}
+
+.filters{display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:13px}
+.listings{display:flex;flex-direction:column;border-top:1px solid var(--line);max-height:520px;overflow:auto}
+.item{display:grid;grid-template-columns:56px minmax(0,1fr) auto;gap:12px;padding:8px 2px;border-bottom:1px solid var(--line);align-items:center;text-decoration:none;color:var(--ink)}
+.item:hover{background:var(--bg)}
+.item .th{width:56px;height:56px;border-radius:3px;background:var(--bg);overflow:hidden;border:1px solid var(--line)}
+.item .th img{width:100%;height:100%;object-fit:cover}
+.item .t{font-size:13.5px;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.item .s{font-size:12px;color:var(--muted)}
+.item .p{text-align:right;display:flex;flex-direction:column;align-items:end;gap:2px}
+.item .p b{font-family:var(--mono);font-size:15px}
+.tag{font-size:10.5px;border:1px solid var(--line);border-radius:2px;padding:0 4px;color:var(--muted)}
+.tag.sold{border-color:var(--teal);color:var(--teal)}
+
+form.rec{display:grid;grid-template-columns:1.2fr 1fr .8fr .8fr auto;gap:8px;align-items:end}
+form.rec label{display:flex;flex-direction:column;gap:3px;font-size:12px;color:var(--muted);min-width:0}
+form.rec input,form.rec select{padding:8px;border:1px solid var(--line);border-radius:4px;background:var(--bg);min-width:0;width:100%}
+.recs{display:flex;flex-direction:column;font-size:13.5px;max-height:240px;overflow:auto;border-top:1px solid var(--line)}
+.recs div{display:grid;grid-template-columns:100px 1fr auto auto auto;gap:10px;padding:7px 2px;border-bottom:1px solid var(--line);align-items:center}
+.recs .ex{font-size:11px;color:var(--accent);border:1px solid var(--accent);padding:0 4px;border-radius:2px;margin-left:4px}
+.x{border:none;background:none;cursor:pointer;color:var(--muted);font-size:16px;padding:0 4px}
+.fx{display:flex;flex-wrap:wrap;gap:14px;font-size:13px;color:var(--muted);align-items:center}
+.fx input{width:78px;padding:5px 6px;border:1px solid var(--line);border-radius:4px;background:var(--bg);font-family:var(--mono);text-align:right}
+
+.dir{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:8px}
+.dir a{border:1px solid var(--line);border-radius:4px;padding:9px 11px;display:flex;flex-direction:column;gap:2px;text-decoration:none;color:var(--ink);background:var(--bg);min-width:0}
+.dir a:hover{border-color:var(--teal)}
+.dir b{font-size:14px}
+.dir span{font-size:12px;color:var(--muted)}
+
+.spec{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));border-top:1px solid var(--line);margin:0}
+.spec div{padding:10px 4px;border-bottom:1px solid var(--line);display:flex;flex-direction:column;gap:2px;min-width:0}
+.spec dt{font-size:12px;color:var(--muted)}
+.spec dd{margin:0;font-weight:600}
+.check{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:4px}
+.check li::marker{color:var(--accent)}
+.empty{color:var(--muted);font-size:14px;padding:10px 0;margin:0}
+
+.cmp-search{display:grid;grid-template-columns:1fr auto;gap:8px;max-width:520px}
+.cmp-search input{padding:9px 12px;border:1px solid var(--ink);border-radius:4px;background:var(--bg);min-width:0}
+.cmp-msg{font-size:13px;color:var(--bad);min-height:1em}
+.cmp-pick{display:flex;flex-wrap:wrap;gap:6px}
+.table-box{overflow-x:auto}
+table{border-collapse:collapse;width:100%;min-width:520px;font-size:13.5px}
+th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+thead th{font-family:var(--display);font-weight:400;font-size:17px;border-bottom:1.5px solid var(--ink)}
+thead th .rm{font-family:var(--body);font-size:12px;border:none;background:none;color:var(--muted);cursor:pointer;padding:0 0 0 6px}
+tbody th{color:var(--muted);font-weight:600;font-size:12.5px;white-space:nowrap}
+td.best{color:var(--good);font-weight:600}
+td.best::after{content:" ●";font-size:9px;vertical-align:middle}
+tr.diff td{background:color-mix(in srgb,var(--accent) 9%,transparent)}
+
+.films{display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:13px;color:var(--muted)}
+.gallery{columns:3 220px;column-gap:10px}
+.shot{break-inside:avoid;margin:0 0 10px;display:block;position:relative;border-radius:4px;overflow:hidden;background:var(--bg);text-decoration:none;color:#fff}
+.shot img{display:block;width:100%;height:auto}
+.shot figcaption{position:absolute;inset:auto 0 0 0;padding:18px 8px 6px;font-size:11px;line-height:1.3;background:linear-gradient(transparent,rgba(0,0,0,.72));opacity:.92}
+.skeleton{background:var(--bg);border-radius:4px;margin-bottom:10px;break-inside:avoid;animation:pulse 1.4s ease-in-out infinite}
+@keyframes pulse{50%{opacity:.5}}
+.samples{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:8px}
+.sample{display:flex;flex-direction:column;gap:4px;padding:12px;border:1px solid var(--line);border-radius:4px;text-decoration:none;color:var(--ink);background:var(--bg)}
+.sample span{font-size:12.5px;color:var(--muted)}
+footer{font-size:12.5px;color:var(--muted);max-width:72ch}
+
+@media (max-width:720px){
+  h1{font-size:28px}
+  .verdict{grid-template-columns:1fr}
+  .verdict .l{border-right:none;border-bottom:1.5px dashed var(--ink);grid-template-columns:110px minmax(0,1fr)}
+  .verdict .l::after{right:auto;left:50%;top:auto;bottom:-9px;transform:translateX(-50%)}
+  .official{font-size:22px}
+  form.rec{grid-template-columns:1fr 1fr}
+  form.rec .btn{grid-column:1/-1}
+  .recs div{grid-template-columns:80px 1fr auto auto}
+  .recs div .cond{display:none}
+  .settings-panel .row{grid-template-columns:1fr}
+}
+@media (prefers-reduced-motion:reduce){.gauge i{transition:none}.skeleton{animation:none}}
+</style>
+
+<div class="wrap">
+  <header>
+    <div>
+      <h1>셔터값</h1>
+      <p>매장에서 본 카메라 가격, 지금 사도 괜찮은지 바로 확인하세요.</p>
+    </div>
+    <button class="conn" id="connBtn" type="button" aria-expanded="false" aria-controls="settings"><i></i><span id="connText">자동 수집 꺼짐</span></button>
+  </header>
+
+  <div class="settings-panel" id="settings" hidden>
+    <h3>자동 수집 연결</h3>
+    <p>Cloudflare Worker 주소를 넣으면 매물, 카메라 사진, 작례를 자동으로 가져와요. 개인 키는 번개장터·중고나라·당근·후르츠패밀리·야후옥션 개인용 수집에 필요해요.</p>
+    <div class="row"><label for="apiBase">Worker 주소</label><input id="apiBase" placeholder="https://shutter-price.아이디.workers.dev" autocomplete="off"></div>
+    <div class="row"><label for="apiKey">개인 키</label><input id="apiKey" type="password" placeholder="ACCESS_KEY와 같은 값" autocomplete="off"></div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+      <button class="btn sm" type="button" id="saveApi">저장하고 연결 확인</button>
+      <div class="health" id="health"></div>
+    </div>
+  </div>
+
+  <div>
+    <form class="search" id="searchForm">
+      <input id="q" list="camList" placeholder="기종 검색 (예: AE-1 프로그램, FM2, 콘탁스 T2)" autocomplete="off" aria-label="카메라 기종 검색">
+      <datalist id="camList"></datalist>
+      <button class="btn" type="submit">찾기</button>
+    </form>
+    <div class="quick" id="quick"></div>
+  </div>
+
+  <div class="verdict" aria-live="polite">
+    <div class="l">
+      <figure class="photo" style="margin:0">
+        <div class="box" id="camPhoto"></div>
+        <small id="camCredit"></small>
+      </figure>
+      <div class="idblock">
+        <span class="lbl">지금 보고 있는 기종</span>
+        <div>
+          <div class="official" id="vName">—</div>
+          <div class="krname" id="vKr"></div>
+        </div>
+        <div class="meta" id="vMeta"></div>
+        <div class="shop">
+          <label class="lbl" for="shopPrice">매장 가격</label>
+          <input id="shopPrice" inputmode="numeric" placeholder="0" class="num">
+          <span class="meta">원</span>
+        </div>
+      </div>
+    </div>
+    <div class="r">
+      <span class="lbl">판정</span>
+      <span class="badge idle" id="vBadge">가격을 입력하세요</span>
+      <span class="meta" id="vWhy">수집한 시세와 비교해 위치를 알려드려요.</span>
+      <div class="gauge" aria-hidden="true"><i id="vNeedle" style="left:-20px"></i></div>
+      <div class="gauge-scale num" id="vScale"><span>—</span><span>—</span><span>—</span></div>
+    </div>
+  </div>
+
+  <nav class="tabs" role="tablist" aria-label="정보 탭">
+    <button role="tab" id="tab-price" data-tab="price" aria-controls="price" type="button">시세</button>
+    <button role="tab" id="tab-spec" data-tab="spec" aria-controls="spec" type="button">스펙</button>
+    <button role="tab" id="tab-compare" data-tab="compare" aria-controls="compare" type="button">비교</button>
+    <button role="tab" id="tab-samples" data-tab="samples" aria-controls="samples" type="button">작례</button>
+  </nav>
+
+  <section id="price" role="tabpanel" aria-labelledby="tab-price">
+    <div class="sec-head">
+      <h2>사이트별 시세</h2>
+      <p>점 하나가 매물 하나예요. 해외 가격은 환율과 직구 부대비용을 더해 원화로 맞췄어요. 회색 띠는 참고 시세 범위예요.</p>
+    </div>
+    <div class="strip-box"><svg class="strip" id="strip" role="img" aria-label="사이트별 가격 분포"></svg></div>
+    <div class="legend">
+      <span><i class="dot" style="background:var(--teal)"></i>판매 완료</span>
+      <span><i class="dot" style="background:transparent;border:1.5px solid var(--teal)"></i>판매 중</span>
+      <span><svg width="11" height="11" viewBox="0 0 10 10" aria-hidden="true"><rect x="1.5" y="1.5" width="7" height="7" transform="rotate(45 5 5)" fill="var(--ink)"/></svg>내가 기록</span>
+      <span><i class="dot" style="background:var(--accent)"></i>매장 가격</span>
+    </div>
+
+    <div class="sub">
+      <span class="lbl">수집 상태</span>
+      <div class="srcs" id="srcs"></div>
+    </div>
+
+    <div class="sub">
+      <div class="sec-head"><h3>매물</h3>
+        <div class="filters" id="filters">
+          <button class="chip" type="button" data-f="all" aria-pressed="true">전체</button>
+          <button class="chip" type="button" data-f="kr" aria-pressed="false">국내</button>
+          <button class="chip" type="button" data-f="abroad" aria-pressed="false">해외</button>
+          <button class="chip" type="button" data-f="noise" aria-pressed="false">제외된 매물</button>
+        </div>
+      </div>
+      <div class="listings" id="listings"></div>
+    </div>
+
+    <div class="sub">
+      <span class="lbl">내가 찾은 가격 기록하기</span>
+      <form class="rec" id="recForm">
+        <label>사이트<select id="rSite"></select></label>
+        <label>가격<input id="rPrice" inputmode="decimal" required placeholder="숫자만"></label>
+        <label>상태<select id="rCond"><option>상</option><option selected>중</option><option>하</option></select></label>
+        <label>거래<select id="rSold"><option value="1">판매 완료</option><option value="0">판매 중</option></select></label>
+        <button class="btn sm" type="submit">추가</button>
+      </form>
+      <div class="recs" id="recs"></div>
+      <div class="fx">
+        <span>환율</span>
+        <label>1 USD = <input id="usd" class="num" inputmode="decimal"> 원</label>
+        <label>1 JPY = <input id="jpy" class="num" inputmode="decimal"> 원</label>
+        <label>직구 부대비용 <input id="ovh" class="num" inputmode="decimal"> %</label>
+        <button class="btn ghost sm" type="button" id="clearEx">예시 기록 지우기</button>
+      </div>
+    </div>
+
+    <div class="sub">
+      <div class="sec-head"><h3>판매처 바로가기</h3><p>수집하지 못하는 곳은 여기서 같은 검색어로 바로 열어보세요.</p></div>
+      <div class="dir" id="dir"></div>
+    </div>
+  </section>
+
+  <section id="spec" role="tabpanel" aria-labelledby="tab-spec">
+    <div class="sec-head"><h2>스펙</h2><p id="specNote"></p></div>
+    <dl class="spec" id="specList"></dl>
+    <div class="sub">
+      <span class="lbl">중고로 살 때 확인할 것</span>
+      <ul class="check" id="checkList"></ul>
+    </div>
+  </section>
+
+  <section id="compare" role="tabpanel" aria-labelledby="tab-compare">
+    <div class="sec-head"><h2>기종 비교</h2><p>최대 3대까지 넣을 수 있어요. 값이 다른 줄은 색으로, 가장 가볍거나 빠르거나 싼 값은 초록으로 표시해요.</p></div>
+    <form class="cmp-search" id="cmpForm">
+      <input id="cmpQ" list="camList" placeholder="비교할 기종 검색" autocomplete="off" aria-label="비교할 기종 검색">
+      <button class="btn sm" type="submit">비교에 넣기</button>
+    </form>
+    <div class="cmp-msg" id="cmpMsg" role="status"></div>
+    <div class="sub"><span class="lbl">빠르게 고르기</span><div class="cmp-pick" id="cmpPick"></div></div>
+    <div class="table-box"><table id="cmpTable"></table></div>
+  </section>
+
+  <section id="samples" role="tabpanel" aria-labelledby="tab-samples">
+    <div class="sec-head"><h2>작례</h2><p id="sampleNote">이 기종으로 찍은 사진이에요. 사진을 누르면 원본과 촬영자 페이지가 열려요.</p></div>
+    <div class="films" id="films"></div>
+    <div class="gallery" id="gallery"></div>
+    <div class="sub"><span class="lbl">더 찾아보기</span><div class="samples" id="sampleLinks"></div></div>
+  </section>
+
+  <footer>참고 시세 범위와 예시 기록은 화면 구성을 보여주기 위한 추정값이에요. 자동 수집 결과는 판매 중 호가가 대부분이라 실제 거래가보다 높을 수 있어요. 기록과 설정은 이 브라우저에만 저장돼요. 카메라 사진과 작례는 자유 라이선스 사진만 쓰고, 촬영자와 라이선스를 함께 표시해요.</footer>
+</div>
+
+<script>
+/* ===== 사이트 ===== */
+const enc=encodeURIComponent;
+// mode: api = 공식 API 자동, scrape = 개인용 수집, link = 바로가기만
+const SOURCES=[
+ {id:'naver',name:'네이버쇼핑',flag:'KR',cur:'KRW',mode:'api',lang:'kr',link:c=>`https://search.shopping.naver.com/search/all?query=${enc(c.kr)}`},
+ {id:'bunjang',name:'번개장터',flag:'KR',cur:'KRW',mode:'scrape',lang:'kr',link:c=>`https://m.bunjang.co.kr/search/products?q=${enc(c.kr)}`},
+ {id:'joongna',name:'중고나라',flag:'KR',cur:'KRW',mode:'scrape',lang:'kr',link:c=>`https://web.joongna.com/search/${enc(c.kr)}`},
+ {id:'daangn',name:'당근 (서울)',flag:'KR',cur:'KRW',mode:'scrape',lang:'kr',link:c=>`https://www.daangn.com/kr/buy-sell/?search=${enc(c.kr)}`},
+ {id:'fruits',name:'후르츠패밀리',flag:'KR',cur:'KRW',mode:'scrape',lang:'kr',link:c=>`https://fruitsfamily.com/search?query=${enc(c.kr)}`},
+ {id:'nflea',name:'N플리마켓',flag:'KR',cur:'KRW',mode:'link',lang:'kr',link:()=>`https://fleamarket.naver.com/`},
+ {id:'coupang',name:'쿠팡',flag:'KR',cur:'KRW',mode:'link',lang:'kr',link:c=>`https://www.coupang.com/np/search?q=${enc(c.kr)}`},
+ {id:'ebay',name:'eBay',flag:'US',cur:'USD',mode:'api',lang:'en',link:c=>`https://www.ebay.com/sch/i.html?_nkw=${enc(c.en)}&LH_Sold=1&LH_Complete=1`},
+ {id:'mercari',name:'메루카리',flag:'JP',cur:'JPY',mode:'link',lang:'en',link:c=>`https://jp.mercari.com/search?keyword=${enc(c.en)}&status=sold_out`},
+ {id:'yahoo',name:'야후옥션',flag:'JP',cur:'JPY',mode:'scrape',lang:'en',link:c=>`https://auctions.yahoo.co.jp/closedsearch/closedsearch?p=${enc(c.en)}`}
+];
+// 수집이 안 되는 카메라 커뮤니티·전문점: 구글 사이트 검색으로 연결
+const DIRECTORY=[
+ {name:'SLR클럽 장터',desc:'국내 카메라 커뮤니티 중고',site:'slrclub.com',lang:'kr'},
+ {name:'클리앙 사고팔고',desc:'회원 중고 장터',site:'clien.net',lang:'kr'},
+ {name:'뽐뿌 장터',desc:'카메라 중고 거래',site:'ppomppu.co.kr',lang:'kr'},
+ {name:'N플리마켓',desc:'네이버 카페 연동 중고거래',url:()=> 'https://fleamarket.naver.com/'},
+ {name:'메루카리 판매 완료',desc:'일본 개인 거래가',src:'mercari'},
+ {name:'쿠팡',desc:'새상품·리퍼',src:'coupang'},
+ {name:'Map Camera',desc:'일본 중고 카메라 전문점',site:'mapcamera.com',lang:'en'},
+ {name:'KEH Camera',desc:'미국 중고 카메라 전문점',site:'keh.com',lang:'en'}
+];
+
+/* ===== 카메라 데이터 =====
+   match: 매물 제목에 모두 들어 있어야 하는 패턴, not: 들어 있으면 제외 */
+const CAMS=[
+ {id:'ae1p',official:'Canon AE-1 PROGRAM',name:'Canon AE-1 Program',kr:'캐논 AE-1 프로그램',en:'Canon AE-1 Program',wiki:'Canon AE-1 Program',year:1981,type:'필름 SLR',shape:'slr',film:true,format:'35mm',mount:'Canon FD',shutter:'2초–1/1000, B',shutterMax:1000,sync:'1/60',modes:'P · S · M',meter:'중앙중점 (SPD)',battery:'4LR44 (6V) 1개',weight:575,ref:[250000,400000],
+  match:[/ae-?\s?1\s*-?\s*(p\b|program|프로그램|프로|プログラム)/i],
+  check:['셔터 누를 때 끽끽 소리(셔터 스퀼)가 나는지','미러 박스 폼 삭음과 뷰파인더 곰팡이','배터리 없으면 셔터가 안 움직이니 전지 넣고 확인']},
+ {id:'k1000',official:'ASAHI PENTAX K1000',name:'Pentax K1000',kr:'펜탁스 K1000',en:'Pentax K1000',wiki:'Pentax K1000',year:1976,type:'필름 SLR',shape:'slr',film:true,format:'35mm',mount:'Pentax K',shutter:'1초–1/1000, B',shutterMax:1000,sync:'1/60',modes:'M',meter:'중앙중점 (CdS, 바늘식)',battery:'LR44 1개 (노출계만)',weight:620,ref:[200000,350000],
+  match:[/k\s?-?1000/i],
+  check:['노출계 바늘이 빛에 반응하는지','저속 셔터(1초, 1/2초)가 끝까지 닫히는지','필름 되감기 레버 헐거움']},
+ {id:'fm2',official:'Nikon FM2 / FM2N',name:'Nikon FM2',kr:'니콘 FM2',en:'Nikon FM2',wiki:'Nikon FM2',year:1982,type:'필름 SLR',shape:'slr',film:true,format:'35mm',mount:'Nikon F',shutter:'1초–1/4000, B',shutterMax:4000,sync:'1/200 (FM2N은 1/250)',modes:'M',meter:'중앙중점 60/40 (LED 표시)',battery:'LR44 2개 (노출계만)',weight:540,ref:[400000,600000],
+  match:[/fm\s?-?2/i],
+  check:['초기형(허니콤 셔터)인지 FM2N인지 구분','1/4000에서 셔터막 끝단 그림자(밴딩) 확인','LED 노출계 점등']},
+ {id:'om1',official:'OLYMPUS OM-1',name:'Olympus OM-1',kr:'올림푸스 OM-1',en:'Olympus OM-1',wiki:'Olympus OM-1',year:1972,type:'필름 SLR',shape:'slr',film:true,format:'35mm',mount:'Olympus OM',shutter:'1초–1/1000, B',shutterMax:1000,sync:'1/60',modes:'M',meter:'중앙중점 (CdS)',battery:'PX625 수은전지 (대체전지 필요)',weight:510,ref:[250000,400000],
+  match:[/om\s?-?1(?![0-9])/i],not:/om-?d|mark\s?ii|m1x/i,
+  check:['수은전지 단종 — 1.35V 대체전지·어댑터 사용','프리즘 쪽 폼 삭아서 생긴 프리즘 부식','노출계 전원 스위치 접촉']},
+ {id:'x700',official:'Minolta X-700',name:'Minolta X-700',kr:'미놀타 X-700',en:'Minolta X-700',wiki:'Minolta X-700',year:1981,type:'필름 SLR',shape:'slr',film:true,format:'35mm',mount:'Minolta MD',shutter:'4초–1/1000, B',shutterMax:1000,sync:'1/60',modes:'P · A · M',meter:'중앙중점',battery:'LR44 2개',weight:505,ref:[180000,300000],
+  match:[/x\s?-?700/i],
+  check:['기판 콘덴서 노후로 셔터가 멈추는 증상','뷰파인더 LED 점등','프로그램 모드 동작']},
+ {id:'mx',official:'ASAHI PENTAX MX',name:'Pentax MX',kr:'펜탁스 MX',en:'Pentax MX',wiki:'Pentax MX',year:1976,type:'필름 SLR',shape:'slr',film:true,format:'35mm',mount:'Pentax K',shutter:'1초–1/1000, B',shutterMax:1000,sync:'1/60',modes:'M',meter:'중앙중점 (GPD, LED)',battery:'LR44 2개 (노출계만)',weight:495,ref:[250000,400000],
+  match:[/pentax|펜탁스|ペンタックス/i,/\bmx\b/i],
+  check:['LED 노출계 표시가 정상인지','배터리실 부식','필름 감기 레버 부드러움']},
+ {id:'f3',official:'Nikon F3',name:'Nikon F3',kr:'니콘 F3',en:'Nikon F3',wiki:'Nikon F3',year:1980,type:'필름 SLR',shape:'slr',film:true,format:'35mm',mount:'Nikon F',shutter:'8초–1/2000, B (기계식 1/60)',shutterMax:2000,sync:'1/80',modes:'A · M',meter:'중앙중점 80/20',battery:'LR44 2개',weight:715,ref:[400000,650000],
+  match:[/nikon|니콘|ニコン/i,/\bf-?3(?![0-9.])/i],
+  check:['파인더 LCD가 흐리거나 깨졌는지','HP(하이아이포인트) 파인더인지','배터리 없이 기계식 1/60 동작']},
+ {id:'m6',official:'Leica M6',name:'Leica M6',kr:'라이카 M6',en:'Leica M6',wiki:'Leica M6',year:1984,type:'필름 RF',shape:'rf',film:true,format:'35mm',mount:'Leica M',shutter:'1초–1/1000, B',shutterMax:1000,sync:'1/50',modes:'M',meter:'부분측광 (LED)',battery:'LR44 2개 (노출계만)',weight:560,ref:[4000000,5500000],
+  match:[/leica|라이카|ライカ/i,/\bm-?6(?![0-9])/i],
+  check:['레인지파인더 이중상 수직·수평 정렬','파인더 플레어(밝은 곳에서 이중상 사라짐)','셔터막 핀홀·주름']},
+ {id:'t2',official:'CONTAX T2',name:'Contax T2',kr:'콘탁스 T2',en:'Contax T2',wiki:'Contax T2',year:1990,type:'필름 컴팩트',shape:'compact',film:true,format:'35mm',mount:'고정 · Sonnar 38mm f/2.8 T*',shutter:'8초–1/500',shutterMax:500,sync:'전 속도',modes:'P · A',meter:'중앙중점',battery:'CR2 1개',weight:295,ref:[1200000,1800000],
+  match:[/contax|콘탁스|コンタックス/i,/\bt-?2(?![0-9])/i],
+  check:['상단 LCD 픽셀 누락','전원 켤 때 렌즈 에러 여부','사파이어 셔터 버튼 깨짐']},
+ {id:'mju2',official:'OLYMPUS μ[mju:]-II',name:'Olympus mju-II',kr:'올림푸스 뮤2',en:'Olympus mju II',wiki:'Olympus Stylus Epic',aka:'해외명 Stylus Epic',year:1997,type:'필름 컴팩트',shape:'compact',film:true,format:'35mm',mount:'고정 · 35mm f/2.8',shutter:'1초–1/1000',shutterMax:1000,sync:'전 속도',modes:'P',meter:'스팟 · 다분할',battery:'CR123A 1개',weight:145,ref:[400000,600000],
+  match:[/mju|뮤|μ|stylus\s*epic|ミュー/i,/(ii|2|Ⅱ|epic)/i],not:/zoom|줌|ズーム|뮤1|mju\s?-?1\b/i,
+  check:['렌즈 커버 슬라이드가 걸리는지','플래시 충전 소리와 발광','필름 카운터 LCD']},
+ {id:'gsn',official:'YASHICA ELECTRO 35 GSN',name:'Yashica Electro 35 GSN',kr:'야시카 일렉트로 35 GSN',en:'Yashica Electro 35 GSN',wiki:'Yashica Electro 35',year:1973,type:'필름 RF',shape:'rf',film:true,format:'35mm',mount:'고정 · Yashinon 45mm f/1.7',shutter:'30초–1/500',shutterMax:500,sync:'전 속도',modes:'A',meter:'CdS 연동',battery:'PX32 대체 (4LR44 + 어댑터)',weight:720,ref:[150000,250000],
+  match:[/yashica|야시카|ヤシカ/i,/gsn/i],
+  check:['내부 패드 열화로 자동노출 고장','상단 노출 경고등(SLOW/OVER) 점등','레인지파인더 이중상 밝기']},
+ {id:'x100v',official:'FUJIFILM X100V',name:'Fujifilm X100V',kr:'후지필름 X100V',en:'Fujifilm X100V',wiki:'Fujifilm X100V',year:2020,type:'디지털 컴팩트',shape:'rf',film:false,format:'APS-C · 26.1MP',mount:'고정 · 23mm f/2',shutter:'최대 1/4000 (전자식 1/32000)',shutterMax:4000,sync:'전 속도 (리프 셔터)',modes:'P · A · S · M',meter:'다분할 · 스팟 · 평균',battery:'NP-W126S',weight:478,ref:[1800000,2300000],
+  match:[/x100\s?v(?!i)/i],
+  check:['정품 여부와 보증 기간','렌즈 앞 유리 스크래치','후면 틸트 LCD 힌지']},
+ {id:'gr3',official:'RICOH GR III',name:'Ricoh GR III',kr:'리코 GR3',en:'Ricoh GR III',wiki:'Ricoh GR III',year:2019,type:'디지털 컴팩트',shape:'compact',film:false,format:'APS-C · 24.2MP',mount:'고정 · 18.3mm f/2.8',shutter:'30초–1/4000',shutterMax:4000,sync:'1/2500',modes:'P · Av · Tv · M',meter:'다분할 · 중앙 · 스팟',battery:'DB-110',weight:257,ref:[900000,1200000],
+  match:[/gr\s?-?(iii|3|Ⅲ)(?!\s?-?x)/i],not:/griii?x|gr3x|gr\s?iii\s?x|hdf/i,
+  check:['센서 먼지(조리개 조이면 보이는 점)','렌즈 경통 출입 소음','손떨림보정 동작']},
+ {id:'5d2',official:'Canon EOS 5D Mark II',name:'Canon EOS 5D Mark II',kr:'캐논 5D 마크2',en:'Canon 5D Mark II',wiki:'Canon EOS 5D Mark II',year:2008,type:'디지털 DSLR',shape:'dslr',film:false,format:'풀프레임 · 21.1MP',mount:'Canon EF',shutter:'30초–1/8000, B',shutterMax:8000,sync:'1/200',modes:'P · Av · Tv · M · B',meter:'35분할',battery:'LP-E6',weight:810,ref:[300000,450000],
+  match:[/5d\s*(mark\s*|mk\s*|마크\s*)?(ii|2|Ⅱ)(?![0-9])|5d\s*막투/i],
+  check:['셔터 카운트(15만 회 내외 내구)','미러 탈락 리콜 대상 여부','핫픽셀']}
+];
+const SPEC_ROWS=[['year','출시'],['type','종류'],['format','포맷'],['mount','마운트 · 렌즈'],['shutter','셔터'],['sync','플래시 동조'],['modes','노출 모드'],['meter','측광'],['battery','배터리'],['weight','무게']];
+const FILMS=['Portra 400','Gold 200','Fujifilm C200','Ilford HP5','Tri-X'];
+const NOISE=/(삽니다|구합니다|구매합니다|매입|구해요|스트랩|케이스|가방|설명서|매뉴얼|렌즈\s?캡|바디\s?캡|후드|필터|배터리|충전기|어댑터|부품용|고장|strap|\bcase\b|manual|\bcap\b|hood|filter|battery|charger|adapter|for parts|parts only|not working|box only|empty box|ジャンク|説明書|ケース|ストラップ)/i;
+
+// 예시 기록 (AE-1 Program) — 실제 매물 아님
+const EXAMPLE={ae1p:[
+ {site:'bunjang',price:320000,cur:'KRW',cond:'상',sold:1},{site:'bunjang',price:280000,cur:'KRW',cond:'중',sold:1},
+ {site:'daangn',price:250000,cur:'KRW',cond:'중',sold:1},{site:'joongna',price:300000,cur:'KRW',cond:'상',sold:0},
+ {site:'naver',price:390000,cur:'KRW',cond:'상',sold:0},{site:'ebay',price:199,cur:'USD',cond:'상',sold:1},
+ {site:'ebay',price:165,cur:'USD',cond:'중',sold:1},{site:'mercari',price:24800,cur:'JPY',cond:'중',sold:1},
+ {site:'yahoo',price:21000,cur:'JPY',cond:'하',sold:1}
+].map(r=>({...r,ex:true}))};
+
+/* ===== 저장 ===== */
+const store={get(k,d){try{const v=localStorage.getItem('sv_'+k);return v?JSON.parse(v):d}catch(e){return d}},
+ set(k,v){try{localStorage.setItem('sv_'+k,JSON.stringify(v))}catch(e){}}};
+let records=store.get('records',EXAMPLE);
+let fx=store.get('fx',{usd:1390,jpy:9.2,ovh:15});
+let cmp=store.get('cmp',['ae1p','fm2','k1000']);
+const API={base:store.get('api',''),key:store.get('key',''),health:null};
+let cur=null;            // {cam, query, c:{kr,en}}
+let live={};             // srcId -> {state, items, error, note}
+let listFilter='all';
+let filmSel='';
+let reqId=0;
+
+/* ===== 도구 ===== */
+const $=s=>document.querySelector(s);
+const el=(t,a={},h='')=>{const e=document.createElement(t);for(const k in a)e.setAttribute(k,a[k]);e.innerHTML=h;return e};
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const won=n=>n>=10000?(Math.round(n/1000)/10).toLocaleString('ko-KR')+'만':Math.round(n).toLocaleString('ko-KR');
+const toKRW=(price,c)=>c==='USD'?price*fx.usd*(1+fx.ovh/100):c==='JPY'?price*fx.jpy*(1+fx.ovh/100):price;
+const norm=s=>String(s).toLowerCase().replace(/[\s\-·_.]/g,'');
+function findCam(q){const n=norm(q);if(!n)return null;
+ return CAMS.find(c=>[c.name,c.kr,c.en,c.official,c.id,c.aka||''].some(x=>x&&norm(x)===n))
+  ||CAMS.find(c=>[c.name,c.kr,c.en,c.official].some(x=>norm(x).includes(n)||n.includes(norm(x))))||null}
+function q(arr,p){const s=[...arr].sort((a,b)=>a-b);if(!s.length)return null;const i=(s.length-1)*p,lo=Math.floor(i),hi=Math.ceil(i);return s[lo]+(s[hi]-s[lo])*(i-lo)}
+const camKey=()=>cur.cam?cur.cam.id:'q:'+norm(cur.query);
+const recsNow=()=>records[camKey()]||[];
+const srcOf=id=>SOURCES.find(s=>s.id===id);
+
+/* ===== Worker 연결 ===== */
+async function api(path,params){
+ const u=new URL(path,API.base.replace(/\/?$/,'/'));
+ for(const k in params)if(params[k])u.searchParams.set(k,params[k]);
+ const r=await fetch(u,{headers:API.key?{'X-Shutter-Key':API.key}:{}});
+ const d=await r.json().catch(()=>({error:`응답을 읽지 못했어요 (${r.status})`}));
+ if(!r.ok||d.error)throw Object.assign(new Error(d.error||r.status),{needKey:d.needKey});
+ return d;
+}
+function setConn(state,text){const b=$('#connBtn');b.className='conn'+(state?' '+state:'');$('#connText').textContent=text}
+async function checkHealth(){
+ const h=$('#health');h.innerHTML='';
+ if(!API.base){setConn('','자동 수집 꺼짐');API.health=null;return}
+ setConn('','연결 확인 중');
+ try{const d=await api('api/health');API.health=d;
+  setConn('on',d.personal?'자동 + 개인용 수집':'자동 수집 연결됨');
+  [['네이버',d.naver],['eBay',d.ebay],['개인용 수집',d.personal],['Flickr',d.flickr],['저장소',d.cache]].forEach(([n,ok])=>h.append(el('span',{class:ok?'y':'n'},`${n} ${ok?'켜짐':'꺼짐'}`)));
+ }catch(e){API.health=null;setConn('err','연결 실패');h.append(el('span',{class:'n'},esc(e.message)))}
+}
+
+/* ===== 선택 ===== */
+function select(query){
+ const cam=findCam(query);
+ cur={cam,query:cam?cam.name:query,c:cam?{kr:cam.kr,en:cam.en}:{kr:query,en:query}};
+ $('#q').value=cur.query;
+ document.querySelectorAll('#quick .chip').forEach(b=>b.setAttribute('aria-pressed',String(!!cam&&b.dataset.id===cam.id)));
+ store.set('last',cur.query);
+ live={};filmSel='';
+ renderAll();
+ if(API.base&&API.health)loadLive();
+ loadPhoto();
+ loadSamples();
+}
+function renderAll(){renderHead();renderSrcs();renderListings();renderStrip();renderRecs();renderDir();renderSpec();renderFilms();renderSampleLinks();renderVerdict()}
+
+function renderHead(){
+ const c=cur.cam;
+ $('#vName').textContent=c?c.official:cur.query;
+ $('#vKr').textContent=c?(c.kr+(c.aka?` · ${c.aka}`:'')):'';
+ $('#vMeta').textContent=c?`${c.year}년 · ${c.type} · ${c.mount}`:'스펙 정보가 없는 기종이에요. 시세 수집과 기록은 그대로 쓸 수 있어요.';
+}
+
+/* ===== 카메라 사진 ===== */
+function silhouette(shape){
+ const s={stroke:'var(--ink)',fill:'var(--surface)'};
+ const body={
+  slr:`<path d="M20 52h28l8-16h48l8 16h28v58H20z" fill="${s.fill}" stroke="${s.stroke}" stroke-width="3" stroke-linejoin="round"/><circle cx="80" cy="84" r="24" fill="${s.fill}" stroke="${s.stroke}" stroke-width="3"/><circle cx="80" cy="84" r="13" fill="var(--line)" stroke="${s.stroke}" stroke-width="2"/><rect x="118" y="44" width="16" height="7" fill="${s.stroke}"/>`,
+  rf:`<rect x="16" y="46" width="128" height="62" rx="6" fill="${s.fill}" stroke="${s.stroke}" stroke-width="3"/><rect x="26" y="56" width="20" height="12" fill="var(--line)" stroke="${s.stroke}" stroke-width="2"/><rect x="112" y="56" width="20" height="12" fill="var(--line)" stroke="${s.stroke}" stroke-width="2"/><circle cx="80" cy="82" r="20" fill="${s.fill}" stroke="${s.stroke}" stroke-width="3"/><circle cx="80" cy="82" r="10" fill="var(--line)" stroke="${s.stroke}" stroke-width="2"/><rect x="104" y="38" width="14" height="8" fill="${s.stroke}"/>`,
+  compact:`<rect x="26" y="50" width="108" height="56" rx="18" fill="${s.fill}" stroke="${s.stroke}" stroke-width="3"/><circle cx="72" cy="78" r="16" fill="var(--line)" stroke="${s.stroke}" stroke-width="3"/><rect x="104" y="60" width="18" height="10" rx="2" fill="var(--line)" stroke="${s.stroke}" stroke-width="2"/><rect x="104" y="44" width="16" height="6" rx="2" fill="${s.stroke}"/>`,
+  dslr:`<path d="M18 50h30l8-14h44l8 14h20q20 0 20 22v38H18z" fill="${s.fill}" stroke="${s.stroke}" stroke-width="3" stroke-linejoin="round"/><circle cx="78" cy="84" r="25" fill="${s.fill}" stroke="${s.stroke}" stroke-width="3"/><circle cx="78" cy="84" r="14" fill="var(--line)" stroke="${s.stroke}" stroke-width="2"/>`
+ }[shape||'slr'];
+ return `<svg viewBox="0 0 160 130" role="img" aria-label="카메라 모양 그림">${body}</svg>`;
+}
+async function loadPhoto(){
+ const box=$('#camPhoto'),cr=$('#camCredit'),my=++reqId;
+ box.innerHTML=silhouette(cur.cam?cur.cam.shape:'slr');
+ cr.textContent=API.base?'사진을 찾는 중…':'자동 수집을 연결하면 실제 사진이 나와요';
+ if(!API.base||!API.health){if(API.base)cr.textContent='Worker에 연결되지 않아 그림으로 표시해요';return}
+ try{
+  const d=await api('api/photo',{title:cur.cam?cur.cam.wiki:'',q:cur.c.en});
+  if(my!==reqId)return;
+  if(!d.img){cr.textContent='자유 라이선스 사진을 찾지 못했어요';return}
+  const img=el('img',{src:d.img,alt:`${cur.query} 사진`,referrerpolicy:'no-referrer'});
+  img.onerror=()=>{box.innerHTML=silhouette(cur.cam?cur.cam.shape:'slr');cr.textContent='사진을 불러오지 못했어요'};
+  box.innerHTML='';box.append(img);
+  cr.innerHTML=`사진: ${esc(d.artist||'작자 미상')} · ${esc(d.license||'')} · <a href="${esc(d.file)}" target="_blank" rel="noopener">위키미디어 공용</a>`;
+ }catch(e){if(my===reqId)cr.textContent='사진을 불러오지 못했어요'}
+}
+
+/* ===== 자동 수집 ===== */
+function relevant(title){
+ if(NOISE.test(title))return false;
+ const c=cur.cam;
+ if(c){if(!c.match.every(r=>r.test(title)))return false;if(c.not&&c.not.test(title))return false;return true}
+ const words=cur.query.toLowerCase().split(/\s+/).filter(w=>w.length>1);
+ const t=norm(title);return words.every(w=>t.includes(norm(w)));
+}
+async function loadLive(){
+ const key=camKey();
+ const run=SOURCES.filter(s=>s.mode==='api'||(s.mode==='scrape'&&API.health&&API.health.personal));
+ run.forEach(s=>live[s.id]={state:'loading',items:[]});
+ renderSrcs();renderListings();
+ await Promise.all(run.map(async s=>{
+  try{const d=await api('api/prices',{src:s.id,q:cur.c[s.lang]});
+   if(camKey()!==key)return;
+   const items=(d.items||[]).map(i=>({...i,src:s.id,krw:toKRW(i.price,i.cur||s.cur)}));
+   items.forEach(i=>i.ok=relevant(i.title));
+   live[s.id]={state:'ok',items,note:d.note,cached:d.cached};
+  }catch(e){if(camKey()!==key)return;live[s.id]={state:'error',items:[],error:e.message}}
+  renderSrcs();renderListings();renderStrip();renderVerdict();
+ }));
+}
+// 기준점: 관련 매물에서 극단값을 뺀 것 + 내가 기록한 것
+function livePoints(){
+ const all=Object.values(live).flatMap(v=>v.items||[]).filter(i=>i.ok);
+ if(all.length<4)return all;
+ const med=q(all.map(i=>i.krw),.5);
+ return all.filter(i=>i.krw>=med*.3&&i.krw<=med*3);
+}
+
+function renderSrcs(){
+ const box=$('#srcs');box.innerHTML='';
+ SOURCES.filter(s=>s.mode!=='link').forEach(s=>{
+  const v=live[s.id];let st,cls='';
+  if(!API.base)st='연결 전';
+  else if(s.mode==='scrape'&&!(API.health&&API.health.personal))st='개인 키 필요';
+  else if(!v)st='대기';
+  else if(v.state==='loading')st='가져오는 중';
+  else if(v.state==='error'){st='실패';cls='err'}
+  else{const n=v.items.filter(i=>i.ok).length;st=`${n}건${v.cached?' · 저장본':''}`;cls='ok'}
+  const b=el('span',{class:'src '+cls,title:v&&v.error?v.error:(v&&v.note)||''},`<span class="mode ${s.mode}">${s.mode==='api'?'API':'개인'}</span><b>${s.name}</b><span class="st">${esc(st)}</span>`);
+  box.append(b)});
+}
+function renderListings(){
+ const box=$('#listings');box.innerHTML='';
+ if(!API.base){box.append(el('p',{class:'note'},'아직 자동 수집이 연결되지 않았어요. 오른쪽 위 <b>자동 수집 꺼짐</b>을 눌러 Worker 주소를 넣으면 네이버쇼핑·eBay·번개장터·중고나라·당근(서울)·후르츠패밀리·야후옥션 매물이 여기 모여요. 그 전까지는 아래에 직접 기록한 가격으로 판정해요.'));return}
+ let items=Object.values(live).flatMap(v=>v.items||[]);
+ const loading=Object.values(live).some(v=>v.state==='loading');
+ const noise=items.filter(i=>!i.ok);
+ if(listFilter==='noise')items=noise;else items=items.filter(i=>i.ok);
+ if(listFilter==='kr')items=items.filter(i=>srcOf(i.src).flag==='KR');
+ if(listFilter==='abroad')items=items.filter(i=>srcOf(i.src).flag!=='KR');
+ items.sort((a,b)=>a.krw-b.krw);
+ const fb=$('#filters [data-f=noise]');fb.textContent=`제외된 매물 ${noise.length}`;
+ if(!items.length){box.append(el('p',{class:'empty'},loading?'매물을 가져오는 중이에요…':(listFilter==='noise'?'제외된 매물이 없어요.':'조건에 맞는 매물이 없어요. 판매처 바로가기에서 직접 확인해 보세요.')));return}
+ items.slice(0,150).forEach(i=>{const s=srcOf(i.src);
+  const orig=(i.cur&&i.cur!=='KRW')?`<span class="s num">${i.cur} ${Number(i.price).toLocaleString()}</span>`:'';
+  const a=el('a',{class:'item',href:i.url,target:'_blank',rel:'noopener'},
+   `<div class="th">${i.img?`<img src="${esc(i.img)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">`:''}</div>
+    <div style="min-width:0"><div class="t">${esc(i.title)}</div><div class="s">${s.name}${i.seller?' · '+esc(i.seller):''}${i.region?' · '+esc(i.region):''}</div></div>
+    <div class="p"><b>${won(i.krw)}원</b>${orig}${i.sold?'<span class="tag sold">판매 완료</span>':(i.used===false?'<span class="tag">새상품</span>':'')}</div>`);
+  box.append(a)});
+}
+
+/* ===== 판정 ===== */
+function basis(){
+ const pts=[...livePoints().map(i=>i.krw),...recsNow().map(r=>toKRW(r.price,r.cur))];
+ const n=livePoints().length,m=recsNow().length;
+ if(pts.length>=3)return{lo:q(pts,.25),mid:q(pts,.5),hi:q(pts,.75),src:`${n?`수집 ${n}건`:''}${n&&m?' + ':''}${m?`기록 ${m}건`:''}의 중간 50%`};
+ if(cur.cam)return{lo:cur.cam.ref[0],mid:(cur.cam.ref[0]+cur.cam.ref[1])/2,hi:cur.cam.ref[1],src:'참고 시세 범위 (데이터가 3건 미만)'};
+ return null;
+}
+const shopVal=()=>parseFloat(($('#shopPrice').value||'').replace(/[^\d.]/g,''));
+function renderVerdict(){
+ const p=shopVal(),b=basis(),badge=$('#vBadge'),why=$('#vWhy'),nd=$('#vNeedle');
+ $('#vScale').innerHTML=b?`<span>${won(b.lo)}</span><span>${won(b.mid)}</span><span>${won(b.hi)}</span>`:'<span>—</span><span>—</span><span>—</span>';
+ if(!p||!b){badge.className='badge idle';badge.textContent=b?'가격을 입력하세요':'데이터가 필요해요';
+  why.textContent=b?`비교 기준: ${b.src}`:'자동 수집을 연결하거나 가격을 3건 이상 기록하면 판정할 수 있어요.';nd.style.left='-20px';return}
+ const span=b.hi-b.lo||1,pos=Math.max(0,Math.min(1,(p-(b.lo-span*.5))/(span*2)));
+ nd.style.left=(pos*100)+'%';
+ const diff=Math.round((p/b.mid-1)*100);
+ if(p<b.lo){badge.className='badge good';badge.textContent='좋은 가격'}
+ else if(p<=b.hi){badge.className='badge warn';badge.textContent='시세 수준'}
+ else{badge.className='badge bad';badge.textContent='비싼 편'}
+ why.textContent=`중간값보다 ${Math.abs(diff)}% ${diff>=0?'비싸요':'싸요'} · 기준: ${b.src}`;
+}
+
+/* ===== 시세 스트립 ===== */
+function renderStrip(){
+ const rows=SOURCES.filter(s=>s.id!=='coupang'&&s.id!=='nflea');
+ const svg=$('#strip'),W=640,L=100,R=20,T=24,RH=26,H=T+rows.length*RH+28;
+ svg.setAttribute('viewBox',`0 0 ${W} ${H}`);
+ const lp=livePoints(),recs=recsNow(),shop=shopVal(),ref=cur.cam?cur.cam.ref:null;
+ let all=[...lp.map(i=>i.krw),...recs.map(r=>toKRW(r.price,r.cur))];if(ref)all.push(...ref);if(shop)all.push(shop);
+ if(!all.length){svg.innerHTML=`<text x="${W/2}" y="${H/2}" text-anchor="middle" fill="var(--muted)" font-size="13">아직 데이터가 없어요. 자동 수집을 연결하거나 가격을 기록해 보세요.</text>`;return}
+ let mn=Math.min(...all),mx=Math.max(...all);const pad=(mx-mn||mn*.2)*.12;mn=Math.max(0,mn-pad);mx=mx+pad;
+ const step=niceStep((mx-mn)/5);mn=Math.floor(mn/step)*step;mx=Math.ceil(mx/step)*step;
+ const x=v=>L+(v-mn)/(mx-mn)*(W-L-R);
+ let s='';
+ for(let v=mn;v<=mx+1;v+=step){s+=`<line x1="${x(v)}" x2="${x(v)}" y1="${T-6}" y2="${T+rows.length*RH}" stroke="var(--line)"/>`+
+  `<text x="${x(v)}" y="${H-8}" text-anchor="middle" fill="var(--muted)" font-size="11" font-family="IBM Plex Mono,monospace">${won(v)}</text>`}
+ if(ref)s+=`<rect x="${x(ref[0])}" y="${T-6}" width="${x(ref[1])-x(ref[0])}" height="${rows.length*RH+6}" fill="var(--muted)" opacity=".13"/>`;
+ rows.forEach((st,i)=>{const y=T+i*RH+RH/2;
+  s+=`<text x="${L-10}" y="${y+4}" text-anchor="end" fill="var(--ink)" font-size="12.5">${st.name}</text>`;
+  lp.filter(it=>it.src===st.id).forEach(it=>{
+   s+=`<circle cx="${x(it.krw)}" cy="${y}" r="4.5" fill="${it.sold?'var(--teal)':'var(--surface)'}" stroke="var(--teal)" stroke-width="1.4" opacity=".85"><title>${esc(it.title)} · ${won(it.krw)}원</title></circle>`});
+  recs.filter(r=>r.site===st.id).forEach(r=>{const v=toKRW(r.price,r.cur),cx=x(v);
+   s+=`<rect x="${cx-4.5}" y="${y-4.5}" width="9" height="9" transform="rotate(45 ${cx} ${y})" fill="var(--ink)"><title>내 기록 ${won(v)}원 (${r.cond}${r.ex?' · 예시':''})</title></rect>`})});
+ if(shop&&shop>=mn&&shop<=mx)s+=`<line x1="${x(shop)}" x2="${x(shop)}" y1="${T-12}" y2="${T+rows.length*RH}" stroke="var(--accent)" stroke-width="2.5"/>`+
+  `<text x="${x(shop)}" y="${T-14}" text-anchor="middle" fill="var(--accent)" font-size="11.5" font-weight="600">매장 ${won(shop)}</text>`;
+ svg.innerHTML=s;
+}
+function niceStep(r){const p=Math.pow(10,Math.floor(Math.log10(r||1))),f=r/p;return(f<1.5?1:f<3?2:f<7?5:10)*p}
+
+/* ===== 기록 ===== */
+function renderRecs(){
+ const box=$('#recs');box.innerHTML='';
+ const rs=recsNow();
+ if(!rs.length){box.append(el('p',{class:'empty'},'이 기종의 기록이 아직 없어요.'));return}
+ rs.forEach((r,i)=>{const st=srcOf(r.site);
+  const orig=r.cur==='KRW'?'':` <span style="color:var(--muted)">(${r.cur} ${r.price.toLocaleString()})</span>`;
+  const row=el('div',{},`<span>${st?st.name:esc(r.site)}${r.ex?'<span class="ex">예시</span>':''}</span>
+   <span class="num">${won(toKRW(r.price,r.cur))}원${orig}</span><span class="cond">${r.cond}</span><span style="color:var(--muted);font-size:12px">${r.sold?'판매 완료':'판매 중'}</span>`);
+  const x=el('button',{class:'x','aria-label':'기록 삭제',type:'button'},'×');x.onclick=()=>{rs.splice(i,1);save()};row.append(x);box.append(row)});
+}
+function save(){store.set('records',records);renderRecs();renderStrip();renderVerdict()}
+
+/* ===== 판매처 바로가기 ===== */
+function renderDir(){
+ const box=$('#dir');box.innerHTML='';
+ SOURCES.filter(s=>s.mode!=='link').forEach(s=>box.append(el('a',{href:s.link(cur.c),target:'_blank',rel:'noopener'},`<b>${s.name} ↗</b><span>${s.flag} · ${s.mode==='api'?'자동 수집 (API)':'개인용 수집'}</span>`)));
+ DIRECTORY.forEach(d=>{let href;
+  if(d.src)href=srcOf(d.src).link(cur.c);
+  else if(d.url)href=d.url(cur.c);
+  else href=`https://www.google.com/search?q=${enc(`site:${d.site} ${cur.c[d.lang]}`)}`;
+  box.append(el('a',{href,target:'_blank',rel:'noopener'},`<b>${d.name} ↗</b><span>${d.desc}</span>`))});
+}
+
+/* ===== 스펙 ===== */
+function fmt(c,k){if(k==='weight')return c.weight+'g';if(k==='year')return c.year+'년';return c[k]}
+function renderSpec(){
+ const c=cur.cam,dl=$('#specList'),ul=$('#checkList');dl.innerHTML='';ul.innerHTML='';
+ if(!c){$('#specNote').textContent='';dl.append(el('p',{class:'empty'},'등록된 스펙이 없는 기종이에요.'));return}
+ $('#specNote').textContent=c.film?'필름 바디 무게는 본체 기준이에요.':'무게는 배터리·메모리 포함 기준이에요.';
+ SPEC_ROWS.forEach(([k,t])=>dl.append(el('div',{},`<dt>${t}</dt><dd>${esc(fmt(c,k))}</dd>`)));
+ c.check.forEach(t=>ul.append(el('li',{},esc(t))));
+}
+
+/* ===== 비교 ===== */
+function addCmp(id){if(cmp.includes(id))return;if(cmp.length>=3)cmp.shift();cmp.push(id);store.set('cmp',cmp);renderCmp()}
+function renderCmp(){
+ const pick=$('#cmpPick');pick.innerHTML='';
+ CAMS.forEach(c=>{const b=el('button',{class:'chip',type:'button','aria-pressed':String(cmp.includes(c.id))},esc(c.kr));
+  b.onclick=()=>{if(cmp.includes(c.id)){cmp=cmp.filter(x=>x!==c.id);store.set('cmp',cmp);renderCmp()}else addCmp(c.id)};pick.append(b)});
+ const cs=cmp.map(id=>CAMS.find(c=>c.id===id)).filter(Boolean),t=$('#cmpTable');
+ if(cs.length<2){t.innerHTML='<tbody><tr><td class="empty">비교할 기종을 2대 이상 넣어주세요.</td></tr></tbody>';return}
+ let h='<thead><tr><th></th>'+cs.map(c=>`<th>${esc(c.official)}<button class="rm" type="button" data-rm="${c.id}" aria-label="${esc(c.name)} 빼기">빼기</button></th>`).join('')+'</tr></thead><tbody>';
+ [...SPEC_ROWS,['ref','참고 시세']].forEach(([k,t])=>{const vals=cs.map(c=>k==='ref'?`${won(c.ref[0])}–${won(c.ref[1])}원`:fmt(c,k));
+  const diff=new Set(vals).size>1;let best=-1;
+  if(k==='weight'){const w=cs.map(c=>c.weight);best=w.indexOf(Math.min(...w))}
+  if(k==='shutter'){const s=cs.map(c=>c.shutterMax);if(new Set(s).size>1)best=s.indexOf(Math.max(...s))}
+  if(k==='ref'){const r=cs.map(c=>c.ref[0]);best=r.indexOf(Math.min(...r))}
+  h+=`<tr class="${diff?'diff':''}"><th scope="row">${t}</th>`+vals.map((v,i)=>`<td class="${i===best&&diff?'best':''}">${esc(v)}</td>`).join('')+'</tr>'});
+ t.innerHTML=h+'</tbody>';
+ t.querySelectorAll('[data-rm]').forEach(b=>b.onclick=()=>{cmp=cmp.filter(x=>x!==b.dataset.rm);store.set('cmp',cmp);renderCmp()});
+}
+
+/* ===== 작례 ===== */
+function renderFilms(){
+ const f=$('#films');f.innerHTML='';
+ if(cur.cam&&!cur.cam.film)return;
+ f.append(el('span',{},'필름별로 보기'));
+ ['',...FILMS].forEach(fm=>{const b=el('button',{class:'chip',type:'button','aria-pressed':String(filmSel===fm)},fm||'전체');
+  b.onclick=()=>{filmSel=fm;renderFilms();renderSampleLinks();loadSamples()};f.append(b)});
+}
+function renderSampleLinks(){
+ const name=cur.c.en+(filmSel?' '+filmSel:''),tag=norm(cur.c.en).replace(/[^a-z0-9]/g,'');
+ const film=!cur.cam||cur.cam.film;
+ const L=[
+  ['Flickr','사진가들이 올린 원본 사진',`https://www.flickr.com/search/?text=${enc(name)}`],
+  ['Google 이미지','분위기 빠르게 훑어보기',`https://www.google.com/search?tbm=isch&q=${enc(name+' sample photos')}`],
+  ['Instagram','#'+tag+' 태그',`https://www.instagram.com/explore/tags/${tag}/`],
+  ['Reddit',film?'r/analog 검색':'r/photography 검색',`https://www.reddit.com/r/${film?'analog':'photography'}/search/?q=${enc(name)}`]
+ ];
+ const box=$('#sampleLinks');box.innerHTML='';
+ L.forEach(([t,d,u])=>box.append(el('a',{class:'sample',href:u,target:'_blank',rel:'noopener'},`<b>${t} ↗</b><span>${esc(d)}</span>`)));
+}
+async function loadSamples(){
+ const g=$('#gallery'),note=$('#sampleNote'),key=camKey()+filmSel;
+ g.innerHTML='';
+ if(!API.base||!API.health){
+  note.textContent='자동 수집을 연결하면 이 기종으로 찍은 사진이 여기 바로 떠요. 지금은 아래 링크로 찾아볼 수 있어요.';return}
+ note.textContent='이 기종으로 찍은 사진을 불러오는 중이에요.';
+ for(let i=0;i<6;i++)g.append(el('div',{class:'skeleton',style:`height:${140+(i%3)*50}px`}));
+ try{
+  const d=await api('api/samples',{q:cur.c.en,film:filmSel});
+  if(camKey()+filmSel!==key)return;
+  g.innerHTML='';
+  if(!d.items.length){note.textContent='자유 라이선스 작례를 찾지 못했어요. 아래 링크에서 찾아보세요.';return}
+  note.textContent=`${d.source}에서 가져온 사진 ${d.items.length}장이에요. 사진을 누르면 원본과 촬영자 페이지가 열려요.`;
+  d.items.forEach(p=>{const a=el('a',{class:'shot',href:p.url,target:'_blank',rel:'noopener'},
+   `<img src="${esc(p.img)}" alt="${esc(p.title)}" loading="lazy" referrerpolicy="no-referrer" ${p.w&&p.h?`width="${p.w}" height="${p.h}"`:''}><figcaption>${esc(p.by||'작자 미상')}${p.license?' · '+esc(p.license):''}</figcaption>`);
+   a.querySelector('img').onerror=()=>a.remove();g.append(a)});
+ }catch(e){if(camKey()+filmSel!==key)return;g.innerHTML='';note.textContent='작례를 불러오지 못했어요: '+e.message}
+}
+
+/* ===== 탭 ===== */
+const TABS=['price','spec','compare','samples'];
+const tabBtns=[...document.querySelectorAll('.tabs [role=tab]')];
+function showTab(t,focus){if(!TABS.includes(t))t='price';
+ tabBtns.forEach(b=>{const on=b.dataset.tab===t;b.setAttribute('aria-selected',String(on));b.tabIndex=on?0:-1;if(on&&focus)b.focus()});
+ TABS.forEach(id=>{document.getElementById(id).hidden=id!==t});store.set('tab',t)}
+
+/* ===== 시작 ===== */
+function init(){
+ const dl=$('#camList'),qk=$('#quick');
+ CAMS.forEach(c=>{dl.append(el('option',{value:c.name}));dl.append(el('option',{value:c.kr}))});
+ ['ae1p','fm2','k1000','t2','mju2','x100v','gr3'].forEach(id=>{const c=CAMS.find(x=>x.id===id);
+  const b=el('button',{class:'chip',type:'button','data-id':id},c.kr);b.onclick=()=>select(c.name);qk.append(b)});
+ SOURCES.forEach(s=>$('#rSite').append(el('option',{value:s.id},`${s.name} (${s.cur})`)));
+
+ $('#searchForm').onsubmit=e=>{e.preventDefault();select($('#q').value.trim()||'Canon AE-1 Program')};
+ $('#q').addEventListener('change',()=>{if(findCam($('#q').value))select($('#q').value)});
+ $('#shopPrice').addEventListener('input',e=>{const d=e.target.value.replace(/[^\d]/g,'');e.target.value=d?Number(d).toLocaleString('ko-KR'):'';renderStrip();renderVerdict()});
+ $('#recForm').onsubmit=e=>{e.preventDefault();const st=srcOf($('#rSite').value);
+  const p=parseFloat($('#rPrice').value.replace(/[^\d.]/g,''));if(!p)return;
+  (records[camKey()]=records[camKey()]||[]).push({site:st.id,price:p,cur:st.cur,cond:$('#rCond').value,sold:+$('#rSold').value});
+  $('#rPrice').value='';save()};
+ ['usd','jpy','ovh'].forEach(k=>{const i=$('#'+k);i.value=fx[k];i.addEventListener('input',()=>{const v=parseFloat(i.value);if(v>=0){fx[k]=v;store.set('fx',fx);
+  Object.values(live).forEach(s=>(s.items||[]).forEach(it=>it.krw=toKRW(it.price,it.cur||srcOf(it.src).cur)));
+  renderListings();renderStrip();renderRecs();renderVerdict()}})});
+ $('#clearEx').onclick=()=>{for(const k in records)records[k]=records[k].filter(r=>!r.ex);save()};
+ document.querySelectorAll('#filters .chip').forEach(b=>b.onclick=()=>{listFilter=b.dataset.f;
+  document.querySelectorAll('#filters .chip').forEach(x=>x.setAttribute('aria-pressed',String(x===b)));renderListings()});
+
+ // 비교 탭 검색
+ $('#cmpForm').onsubmit=e=>{e.preventDefault();const v=$('#cmpQ').value.trim(),c=findCam(v),m=$('#cmpMsg');
+  if(!v){m.textContent='';return}
+  if(!c){m.textContent=`"${v}"은(는) 아직 스펙 데이터가 없어 비교할 수 없어요.`;return}
+  m.textContent='';addCmp(c.id);$('#cmpQ').value=''};
+
+ // 설정
+ $('#apiBase').value=API.base;$('#apiKey').value=API.key;
+ $('#connBtn').onclick=()=>{const p=$('#settings');p.hidden=!p.hidden;$('#connBtn').setAttribute('aria-expanded',String(!p.hidden))};
+ $('#saveApi').onclick=async()=>{API.base=$('#apiBase').value.trim();API.key=$('#apiKey').value.trim();
+  store.set('api',API.base);store.set('key',API.key);await checkHealth();select(cur.query)};
+
+ // 탭
+ tabBtns.forEach((b,i)=>{b.onclick=()=>showTab(b.dataset.tab);
+  b.onkeydown=e=>{if(e.key==='ArrowRight'||e.key==='ArrowLeft'){e.preventDefault();const n=tabBtns[(i+(e.key==='ArrowRight'?1:3))%4];showTab(n.dataset.tab,true)}}});
+ const h=location.hash.slice(1);showTab(TABS.includes(h)?h:store.get('tab','price'));
+ window.addEventListener('hashchange',()=>showTab(location.hash.slice(1)));
+
+ renderCmp();
+ $('#shopPrice').value='350,000';
+ select(store.get('last','Canon AE-1 Program'));
+ if(API.base)checkHealth().then(()=>{if(API.health)select(cur.query)});
+}
+init();
+</script>
+</html>
