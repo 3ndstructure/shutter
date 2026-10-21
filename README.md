@@ -15,9 +15,9 @@ shutter/
 - [x] 파일 구조 정리 (`worker/` 폴더로 분리, `wrangler deploy` 빌드 확인)
 - [x] 3단계 Worker 설정 (`ALLOWED_ORIGINS`, `CONTACT` 입력 완료)
 - [x] eBay 키가 없어도 화면이 동작하도록 처리 (수집 상태에 "키 없음"으로 표시)
-- [ ] 1단계 네이버 키 받기 (Flickr 키는 선택)
-- [ ] 2단계 저장소 공개 전환 + GitHub Pages 켜기
-- [ ] 4단계 Worker 배포 (eBay 빼고 먼저)
+- [x] 1단계 네이버 키 받기 (Flickr 키는 선택)
+- [x] 2단계 저장소 공개 전환 + GitHub Pages 켜기
+- [x] 4단계 Worker 배포 (eBay 빼고 먼저) → `https://shutter-price.shutter-price.workers.dev`
 - [ ] 5단계 연결 확인
 - [ ] eBay 승인 후 키 두 개 추가 ([아래](#ebay-승인-후-5분))
 
@@ -69,7 +69,7 @@ CONTACT = "https://3ndstructure.github.io/shutter/"
 ```bash
 cd worker
 npx wrangler login                          # 브라우저가 열리면 Cloudflare 로그인 후 허용
-npx wrangler kv namespace create CACHE      # 나온 id 를 wrangler.toml 의 PUT-KV-ID-HERE 자리에 붙여넣기
+npx wrangler kv namespace create CACHE      # 완료: id 는 wrangler.toml 에 들어가 있음 (다시 만들지 않기)
 
 npx wrangler secret put ACCESS_KEY          # 개인 키: 아무도 모를 긴 문자열 직접 만들어 입력
 npx wrangler secret put NAVER_ID
@@ -77,17 +77,24 @@ npx wrangler secret put NAVER_SECRET
 npx wrangler secret put FLICKR_KEY          # 선택
 # EBAY_ID, EBAY_SECRET 은 승인 후에 넣어요 (아래 "eBay 승인 후")
 
-npx wrangler deploy                          # 끝나면 https://shutter-price.○○.workers.dev 주소가 나옴
+npx wrangler deploy                          # 주소: https://shutter-price.shutter-price.workers.dev
 ```
 
 - KV id를 바꾼 `wrangler.toml` 은 커밋해서 올려도 돼요 (id는 비밀값이 아님).
 
 ## 5단계. 연결 확인 (5분)
 
-1. 브라우저 주소창에 `https://shutter-price.○○.workers.dev/api/health` → `{"ok":true, ...}` 가 보이면 성공
+1. 브라우저 주소창에 `https://shutter-price.shutter-price.workers.dev/api/health` → `{"ok":true, ...}` 가 보이면 성공
 2. GitHub Pages 사이트 열기 → 오른쪽 위 **자동 수집 꺼짐** 누르기
 3. Worker 주소와 개인 키(ACCESS_KEY와 같은 값) 입력 → **저장하고 연결 확인**
 4. 네이버·개인용 수집·저장소가 "켜짐"으로 나오면 완료 (eBay는 승인 전까지 "꺼짐"이 정상)
+
+**`ERR_SSL_VERSION_OR_CIPHER_MISMATCH` 가 뜨면**: workers.dev 하위 도메인(`shutter-price.workers.dev`)을 방금 처음 만들어서 Cloudflare가 아직 HTTPS 인증서를 발급하는 중이에요. 코드나 설정 문제가 아니라 기다리면 풀려요.
+
+1. 10~30분 기다린 뒤 **시크릿 창**에서 다시 열기 (브라우저가 실패한 연결을 기억하고 있을 수 있음)
+2. PowerShell에서 확인: `curl.exe https://shutter-price.shutter-price.workers.dev/api/health` → JSON이 나오면 해결된 것
+3. 한두 시간이 지나도 그대로면: Cloudflare 대시보드 → Workers & Pages → `shutter-price` → Settings → Domains & Routes 에서 workers.dev 가 **Enabled** 인지 확인
+4. 그래도 안 되면 백신의 HTTPS 검사·VPN을 잠시 끄고 열어보기
 
 ## eBay 승인 후 (5분)
 

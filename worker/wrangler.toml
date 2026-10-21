@@ -1,6 +1,9 @@
 name = "shutter-price"
 main = "src/index.js"
 compatibility_date = "2026-09-01"
+# https://shutter-price.shutter-price.workers.dev 로 공개. 버전별 미리보기 주소는 쓰지 않음
+workers_dev = true
+preview_urls = false
 
 [vars]
 # GitHub Pages 주소 (뒤에 /shutter 는 붙이지 않음). 여러 개면 쉼표로 구분
@@ -10,10 +13,10 @@ CONTACT = "https://3ndstructure.github.io/shutter/"
 # 당근 지역 파라미터를 알게 되면 넣으세요 (비워 두면 서울 필터만 적용)
 DAANGN_REGION = ""
 
-# 결과 저장소 (README 4단계에서 만든 id로 바꾸세요)
+# 결과 저장소 (README 4단계에서 만든 KV)
 [[kv_namespaces]]
 binding = "CACHE"
-id = "PUT-KV-ID-HERE"
+id = "86c67d3abb7b48d0971907fc5db03166"
 
 # 비밀값은 여기 적지 말고 명령어로 넣습니다:
 #   npx wrangler secret put ACCESS_KEY
